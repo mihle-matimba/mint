@@ -62,7 +62,7 @@ const TransactRadialMenu = ({ isOpen, onClose }: TransactRadialMenuProps) => {
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 px-6 pb-24"
+          className="fixed inset-0 z-40 flex items-end justify-center bg-black/70 px-6 pb-[calc(env(safe-area-inset-bottom,0px)+6.5rem)]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
