@@ -3,7 +3,6 @@ import TextInput from './TextInput.jsx';
 import PasswordInput from './PasswordInput.jsx';
 import PrimaryButton from './PrimaryButton.jsx';
 import PasswordStrengthIndicator, { getPasswordStrength } from './PasswordStrengthIndicator.jsx';
-import { supabase } from '../lib/supabase.js';
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_TIME = 180;
@@ -11,6 +10,7 @@ const RESEND_COOLDOWN = 30;
 const MAX_RESEND_ATTEMPTS = 5;
 const MAX_OTP_ATTEMPTS = 5;
 const COOLDOWN_TIMES = [300, 1800];
+const VALID_OTP = '123456';
 
 const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
