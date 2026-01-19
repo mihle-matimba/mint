@@ -252,6 +252,12 @@ input:-webkit-autofill:active {
   pointer-events: none;
 }
 
+.dismiss-countdown {
+  margin-top: 16px;
+  font-size: 14px;
+  color: rgba(100, 100, 100, 0.8);
+}
+
 .step {
   display: none;
 }

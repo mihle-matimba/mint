@@ -31,6 +31,8 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
   const [cooldownLevel, setCooldownLevel] = useState(0);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [showRateLimitScreen, setShowRateLimitScreen] = useState(false);
+  const [rateLimitDismissCountdown, setRateLimitDismissCountdown] = useState(0);
   
   const toastTimeout = useRef(null);
   const loginTimeout = useRef(null);
@@ -38,6 +40,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const otpExpiryInterval = useRef(null);
   const resendCooldownInterval = useRef(null);
   const rateLimitInterval = useRef(null);
+  const rateLimitDismissInterval = useRef(null);
 
   const heroDefault = 'Get started';
   const heroSubDefault = useMemo(
@@ -109,14 +112,28 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     const cooldownTime = COOLDOWN_TIMES[Math.min(cooldownLevel, COOLDOWN_TIMES.length - 1)];
     setRateLimitCooldown(cooldownTime);
     setCooldownLevel((prev) => prev + 1);
+    setShowRateLimitScreen(true);
+    setRateLimitDismissCountdown(10);
     
     if (rateLimitInterval.current) clearInterval(rateLimitInterval.current);
+    if (rateLimitDismissInterval.current) clearInterval(rateLimitDismissInterval.current);
     
     rateLimitInterval.current = setInterval(() => {
       setRateLimitCooldown((prev) => {
         if (prev <= 1) {
           clearInterval(rateLimitInterval.current);
           setResendAttempts(0);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    rateLimitDismissInterval.current = setInterval(() => {
+      setRateLimitDismissCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(rateLimitDismissInterval.current);
+          setShowRateLimitScreen(false);
           return 0;
         }
         return prev - 1;
@@ -574,7 +591,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
             </div>
 
             <div id="step-otp" className={`step ${currentStep === 'otp' ? 'active' : ''} space-y-8`}>
-              {rateLimitCooldown > 0 ? (
+              {showRateLimitScreen ? (
                 <div className="otp-cooldown animate-on-load delay-4">
                   <h4>Too many attempts</h4>
                   <p>
@@ -585,6 +602,9 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                       Or <a href="#">contact support</a> for help.
                     </p>
                   )}
+                  <p className="dismiss-countdown">
+                    Returning in {rateLimitDismissCountdown}s...
+                  </p>
                 </div>
               ) : (
                 <>
