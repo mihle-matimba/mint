@@ -3,6 +3,7 @@ import TextInput from './TextInput.jsx';
 import PasswordInput from './PasswordInput.jsx';
 import PrimaryButton from './PrimaryButton.jsx';
 import PasswordStrengthIndicator, { getPasswordStrength } from './PasswordStrengthIndicator.jsx';
+import { supabase } from '../lib/supabase.js';
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_TIME = 180;
@@ -10,7 +11,6 @@ const RESEND_COOLDOWN = 30;
 const MAX_RESEND_ATTEMPTS = 5;
 const MAX_OTP_ATTEMPTS = 5;
 const COOLDOWN_TIMES = [300, 1800];
-const VALID_OTP = '123456';
 
 const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
   const [currentStep, setCurrentStep] = useState(initialStep);
@@ -33,6 +33,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [showRateLimitScreen, setShowRateLimitScreen] = useState(false);
   const [rateLimitDismissCountdown, setRateLimitDismissCountdown] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   
   const toastTimeout = useRef(null);
   const loginTimeout = useRef(null);
@@ -159,7 +160,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   const isOtpBlocked = otpAttempts >= MAX_OTP_ATTEMPTS || otpExpiry <= 0 || rateLimitCooldown > 0;
 
-  const checkOtpValue = useCallback((values) => {
+  const checkOtpValue = useCallback(async (values) => {
     const code = values.join('');
     if (code.length !== OTP_LENGTH) return;
     
@@ -175,33 +176,49 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       return;
     }
     
-    if (code !== VALID_OTP) {
-      const newAttempts = otpAttempts + 1;
-      setOtpAttempts(newAttempts);
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: code,
+        type: 'signup',
+      });
       
-      if (newAttempts >= MAX_OTP_ATTEMPTS) {
-        showToast('Maximum attempts reached. Please request a new code.');
+      if (error) {
+        const newAttempts = otpAttempts + 1;
+        setOtpAttempts(newAttempts);
+        
+        if (newAttempts >= MAX_OTP_ATTEMPTS) {
+          showToast('Maximum attempts reached. Please request a new code.');
+          setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+          setIsLoading(false);
+          return;
+        }
+        
+        showToast(`Incorrect code. ${MAX_OTP_ATTEMPTS - newAttempts} attempts remaining.`);
         setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+        otpRefs.current[0]?.focus();
+        setIsLoading(false);
         return;
       }
       
-      showToast(`Incorrect code. ${MAX_OTP_ATTEMPTS - newAttempts} attempts remaining.`);
-      setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
-      otpRefs.current[0]?.focus();
-      return;
+      if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
+      if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
+      
+      showToast('Email verified successfully!');
+      
+      setTimeout(() => {
+        if (onSignupComplete) {
+          onSignupComplete();
+        }
+      }, 1000);
+    } catch (err) {
+      showToast('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-    
-    if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
-    if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
-    
-    showToast('Email verified successfully!');
-    
-    setTimeout(() => {
-      if (onSignupComplete) {
-        onSignupComplete();
-      }
-    }, 1000);
-  }, [otpAttempts, otpExpiry, onSignupComplete]);
+  }, [otpAttempts, otpExpiry, email, onSignupComplete]);
 
   useEffect(() => {
     const code = otp.join('');
@@ -218,7 +235,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     otpRefs.current[Math.min(text.length, OTP_LENGTH) - 1]?.focus();
   };
 
-  const handleResendOtp = () => {
+  const handleResendOtp = async () => {
     if (resendCooldown > 0 || rateLimitCooldown > 0) return;
     
     const newResendAttempts = resendAttempts + 1;
@@ -230,11 +247,30 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       return;
     }
     
-    setOtpAttempts(0);
-    setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
-    startOtpTimer();
-    showToast('New verification code sent to your email.');
-    otpRefs.current[0]?.focus();
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      
+      if (error) {
+        showToast(error.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      setOtpAttempts(0);
+      setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
+      startOtpTimer();
+      showToast('New verification code sent to your email.');
+      otpRefs.current[0]?.focus();
+    } catch (err) {
+      showToast('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleEditEmail = () => {
@@ -310,7 +346,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     showToast('Enter the email you signed up with.');
   };
 
-  const handleLoginSubmit = () => {
+  const handleLoginSubmit = async () => {
     if (!loginEmail || !loginEmail.includes('@') || !loginEmail.includes('.')) {
       showToast('Enter a valid email address.');
       return;
@@ -320,14 +356,28 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       return;
     }
 
-    if (loginTimeout.current) {
-      clearTimeout(loginTimeout.current);
-    }
-    loginTimeout.current = setTimeout(() => {
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+      
+      if (error) {
+        showToast(error.message);
+        setIsLoading(false);
+        return;
+      }
+      
       if (onLoginComplete) {
         onLoginComplete();
       }
-    }, 1500);
+    } catch (err) {
+      showToast('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePasswordContinue = () => {
@@ -339,7 +389,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     showStep('confirm');
   };
 
-  const handleConfirmContinue = () => {
+  const handleConfirmContinue = async () => {
     if (password.length < 8) {
       showToast('Use at least 8 characters for your password.');
       return;
@@ -349,12 +399,37 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       return;
     }
     
-    startOtpTimer();
-    showStep('otp');
-    showToast('Verification code sent to your email.');
-    setTimeout(() => {
-      otpRefs.current[0]?.focus();
-    }, 100);
+    setIsLoading(true);
+    
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+          },
+        },
+      });
+      
+      if (error) {
+        showToast(error.message);
+        setIsLoading(false);
+        return;
+      }
+      
+      startOtpTimer();
+      showStep('otp');
+      showToast('Verification code sent to your email.');
+      setTimeout(() => {
+        otpRefs.current[0]?.focus();
+      }, 100);
+    } catch (err) {
+      showToast('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formSubmit = (event) => {
