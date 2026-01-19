@@ -33,12 +33,12 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - At least 1 special character
   - Only "Strong" passwords can proceed
 - **OTP Verification Flow**:
-  - 180 second code expiry timer
-  - 30 second resend cooldown
-  - Rate limiting (max 5 resend attempts)
+  - 180 second code expiry (hidden timer - shows error only when user attempts expired code)
+  - 30 second resend cooldown between requests
+  - Max 5 resend/edit attempts before rate limit triggers
   - Max 5 incorrect OTP attempts before lockout
-  - 5min/30min progressive cooldown after rate limit
-  - Edit email functionality returns directly to OTP page (seamless flow)
+  - Progressive cooldowns: 5min first, 30min second, 30min+ shows "contact support"
+  - Edit email counts as a resend attempt and returns directly to OTP page
 - **iOS-Style UI**: Glassmorphism design with smooth animations
 
 ## Development

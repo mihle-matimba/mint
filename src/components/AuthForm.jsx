@@ -221,13 +221,20 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleEditEmail = () => {
+    if (rateLimitCooldown > 0) return;
+    
+    const newResendAttempts = resendAttempts + 1;
+    setResendAttempts(newResendAttempts);
+    
+    if (newResendAttempts >= MAX_RESEND_ATTEMPTS) {
+      startRateLimitCooldown();
+      showToast('Too many attempts. Please wait before trying again.');
+      return;
+    }
+    
     if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
     if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
-    if (rateLimitInterval.current) clearInterval(rateLimitInterval.current);
     setOtpAttempts(0);
-    setResendAttempts(0);
-    setRateLimitCooldown(0);
-    setCooldownLevel(0);
     setOtpExpiry(OTP_EXPIRY_TIME);
     setOtp(Array.from({ length: OTP_LENGTH }, () => ''));
     setIsEditingEmail(true);
@@ -571,11 +578,13 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                 <div className="otp-cooldown animate-on-load delay-4">
                   <h4>Too many attempts</h4>
                   <p>
-                    Please wait <strong>{formatTime(rateLimitCooldown)}</strong> before trying again.
+                    Please try again later.
                   </p>
-                  <p style={{ marginTop: '12px' }}>
-                    Or <a href="#">contact support</a> for help.
-                  </p>
+                  {cooldownLevel >= 2 && (
+                    <p style={{ marginTop: '12px' }}>
+                      Or <a href="#">contact support</a> for help.
+                    </p>
+                  )}
                 </div>
               ) : (
                 <>
@@ -619,15 +628,6 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                     ))}
                   </div>
                   
-                  <div className="otp-timer">
-                    {otpExpiry > 0 ? (
-                      <p>
-                        Code expires in <span className="otp-timer-value">{formatTime(otpExpiry)}</span>
-                      </p>
-                    ) : (
-                      <p style={{ color: '#FF3B30' }}>Code expired. Please request a new one.</p>
-                    )}
-                  </div>
                   
                   {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && (
                     <p className="otp-attempts">
