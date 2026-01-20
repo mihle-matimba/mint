@@ -497,14 +497,25 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleConfirmNewPasswordSubmit = async () => {
-    if (isLoading) return;
+    console.log('handleConfirmNewPasswordSubmit called');
+    console.log('isLoading:', isLoading);
+    console.log('newPassword:', newPassword ? 'set' : 'empty');
+    console.log('confirmNewPassword:', confirmNewPassword ? 'set' : 'empty');
+    
+    if (isLoading) {
+      console.log('Blocked by isLoading');
+      return;
+    }
     
     if (newPassword !== confirmNewPassword) {
+      console.log('Passwords do not match');
       showToast("Passwords don't match.");
       return;
     }
     
+    console.log('Getting session...');
     const { data: { session } } = await supabase.auth.getSession();
+    console.log('Session:', session ? 'exists' : 'null');
     if (!session) {
       showToast('Session expired. Please request a new password reset link.');
       setTimeout(() => {
