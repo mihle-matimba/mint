@@ -33,6 +33,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - At least 1 special character
   - Only "Strong" passwords can proceed
 - **OTP Verification Flow** (Signup):
+  - 8-digit OTP code from Supabase email
   - 180 second code expiry (hidden timer - shows error only when user attempts expired code)
   - 30 second resend cooldown between requests
   - Max 5 resend/edit attempts before rate limit triggers
