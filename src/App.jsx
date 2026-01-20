@@ -13,25 +13,47 @@ const App = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    const checkPasswordRecovery = async () => {
-      if (!supabase) {
-        setIsCheckingAuth(false);
-        return;
-      }
-      
+    if (!supabase) {
+      setIsCheckingAuth(false);
+      return;
+    }
+    
+    const handleRecoveryFlow = () => {
+      setAuthStep("newPassword");
+      setCurrentPage("auth");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    };
+    
+    const checkInitialState = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
+        const hash = window.location.hash;
         const urlParams = new URLSearchParams(window.location.search);
         const isReset = urlParams.get('reset') === 'true';
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        const accessToken = hashParams.get('access_token');
-        const type = hashParams.get('type');
         
-        if ((isReset || type === 'recovery') && (session || accessToken)) {
-          setAuthStep("newPassword");
-          setCurrentPage("auth");
-          window.history.replaceState({}, document.title, window.location.pathname);
+        if (hash && hash.includes('type=recovery')) {
+          const hashParams = new URLSearchParams(hash.substring(1));
+          const accessToken = hashParams.get('access_token');
+          const refreshToken = hashParams.get('refresh_token');
+          
+          if (accessToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || ''
+            });
+            
+            if (!error) {
+              handleRecoveryFlow();
+              return;
+            }
+          }
+        }
+        
+        if (isReset) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            handleRecoveryFlow();
+            return;
+          }
         }
       } catch (err) {
         console.error('Error checking auth state:', err);
@@ -40,15 +62,11 @@ const App = () => {
       }
     };
     
-    checkPasswordRecovery();
-    
-    if (!supabase) return;
+    checkInitialState();
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
-        setAuthStep("newPassword");
-        setCurrentPage("auth");
-        window.history.replaceState({}, document.title, window.location.pathname);
+        handleRecoveryFlow();
       }
     });
     
