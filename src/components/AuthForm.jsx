@@ -1062,7 +1062,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                         value={digit}
                         onChange={(event) => !isOtpBlocked && handleOtpChange(event.target.value, index)}
                         onKeyDown={(event) => !isOtpBlocked && handleOtpKeyDown(event, index)}
-                        disabled={isOtpBlocked}
+                        disabled={isOtpBlocked || isLoading}
                         ref={(el) => {
                           otpRefs.current[index] = el;
                         }}
@@ -1070,8 +1070,13 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                     ))}
                   </div>
                   
+                  {isLoading && (
+                    <p className="text-center text-sm text-muted-foreground animate-pulse">
+                      Verifying...
+                    </p>
+                  )}
                   
-                  {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && (
+                  {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && !isLoading && (
                     <p className="otp-attempts">
                       {MAX_OTP_ATTEMPTS - otpAttempts} attempts remaining
                     </p>
