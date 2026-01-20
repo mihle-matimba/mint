@@ -5,7 +5,7 @@ import PrimaryButton from './PrimaryButton.jsx';
 import PasswordStrengthIndicator, { getPasswordStrength } from './PasswordStrengthIndicator.jsx';
 import { supabase } from '../lib/supabase.js';
 
-const OTP_LENGTH = 8;
+const OTP_LENGTH = 6;
 const OTP_EXPIRY_TIME = 180;
 const RESEND_COOLDOWN = 30;
 const MAX_RESEND_ATTEMPTS = 5;
