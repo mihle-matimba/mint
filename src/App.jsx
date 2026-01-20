@@ -6,15 +6,24 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 
+const initialHash = window.location.hash;
+const isRecoveryMode = initialHash.includes('type=recovery');
+
 const App = () => {
   const [showPreloader, setShowPreloader] = useState(true);
-  const [currentPage, setCurrentPage] = useState("welcome");
-  const [authStep, setAuthStep] = useState("email");
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const recoveryHandled = useRef(false);
+  const [currentPage, setCurrentPage] = useState(isRecoveryMode ? "auth" : "welcome");
+  const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
+  const [isCheckingAuth, setIsCheckingAuth] = useState(!isRecoveryMode);
+  const recoveryHandled = useRef(isRecoveryMode);
 
   useEffect(() => {
-    if (!supabase) {
+    if (isRecoveryMode) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || isRecoveryMode) {
       setIsCheckingAuth(false);
       return;
     }
@@ -26,20 +35,6 @@ const App = () => {
       setCurrentPage("auth");
       window.history.replaceState({}, document.title, window.location.pathname);
     };
-    
-    const checkHashForRecovery = () => {
-      const hash = window.location.hash;
-      if (hash && hash.includes('type=recovery')) {
-        return true;
-      }
-      return false;
-    };
-    
-    if (checkHashForRecovery()) {
-      handleRecoveryFlow();
-      setIsCheckingAuth(false);
-      return;
-    }
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
