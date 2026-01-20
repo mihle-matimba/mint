@@ -538,6 +538,8 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleConfirmContinue = async () => {
+    if (isLoading) return;
+    
     if (password.length < 8) {
       showToast('Use at least 8 characters for your password.');
       return;
@@ -550,7 +552,6 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     setIsLoading(true);
     
     try {
-      console.log('Attempting signup for:', email);
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -562,11 +563,12 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         },
       });
       
-      console.log('Signup response - data:', data, 'error:', error);
-      
       if (error) {
-        console.error('Signup error:', error);
-        showToast(error.message);
+        if (error.message.includes('security purposes')) {
+          showToast('Please wait a few seconds before trying again.');
+        } else {
+          showToast(error.message);
+        }
         setIsLoading(false);
         return;
       }
@@ -584,7 +586,6 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         otpRefs.current[0]?.focus();
       }, 100);
     } catch (err) {
-      console.error('Signup exception:', err);
       showToast('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
