@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 
 import Preloader from "./components/Preloader.jsx";
@@ -11,6 +11,7 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState("welcome");
   const [authStep, setAuthStep] = useState("email");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const recoveryHandled = useRef(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -19,56 +20,35 @@ const App = () => {
     }
     
     const handleRecoveryFlow = () => {
+      if (recoveryHandled.current) return;
+      recoveryHandled.current = true;
       setAuthStep("newPassword");
       setCurrentPage("auth");
       window.history.replaceState({}, document.title, window.location.pathname);
     };
     
-    const checkInitialState = async () => {
-      try {
-        const hash = window.location.hash;
-        const urlParams = new URLSearchParams(window.location.search);
-        const isReset = urlParams.get('reset') === 'true';
-        
-        if (hash && hash.includes('type=recovery')) {
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get('access_token');
-          const refreshToken = hashParams.get('refresh_token');
-          
-          if (accessToken) {
-            const { error } = await supabase.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken || ''
-            });
-            
-            if (!error) {
-              handleRecoveryFlow();
-              return;
-            }
-          }
-        }
-        
-        if (isReset) {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            handleRecoveryFlow();
-            return;
-          }
-        }
-      } catch (err) {
-        console.error('Error checking auth state:', err);
-      } finally {
-        setIsCheckingAuth(false);
+    const checkHashForRecovery = () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('type=recovery')) {
+        return true;
       }
+      return false;
     };
     
-    checkInitialState();
+    if (checkHashForRecovery()) {
+      handleRecoveryFlow();
+      setIsCheckingAuth(false);
+      return;
+    }
     
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         handleRecoveryFlow();
+        setIsCheckingAuth(false);
       }
     });
+    
+    setIsCheckingAuth(false);
     
     return () => {
       subscription?.unsubscribe();

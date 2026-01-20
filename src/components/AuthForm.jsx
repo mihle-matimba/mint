@@ -469,7 +469,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/?reset=true`,
+        redirectTo: window.location.origin,
       });
       
       if (error) {
