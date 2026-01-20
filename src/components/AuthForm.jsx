@@ -188,6 +188,10 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleOtpKeyDown = (event, index) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      return;
+    }
     if (event.key === 'Backspace' && !otp[index] && otpRefs.current[index - 1]) {
       otpRefs.current[index - 1].focus();
     }
