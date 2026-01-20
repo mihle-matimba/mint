@@ -10,6 +10,8 @@ const OTP_EXPIRY_TIME = 180;
 const RESEND_COOLDOWN = 30;
 const MAX_RESEND_ATTEMPTS = 5;
 const MAX_OTP_ATTEMPTS = 5;
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_COOLDOWN_TIME = 1800;
 const COOLDOWN_TIMES = [300, 1800];
 
 const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) => {
@@ -35,6 +37,16 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [rateLimitDismissCountdown, setRateLimitDismissCountdown] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [loginCooldown, setLoginCooldown] = useState(0);
+  const [loginCooldownLevel, setLoginCooldownLevel] = useState(0);
+  const [showLoginRateLimitScreen, setShowLoginRateLimitScreen] = useState(false);
+  
+  const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  
   const toastTimeout = useRef(null);
   const loginTimeout = useRef(null);
   const otpRefs = useRef([]);
@@ -42,6 +54,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const resendCooldownInterval = useRef(null);
   const rateLimitInterval = useRef(null);
   const rateLimitDismissInterval = useRef(null);
+  const loginCooldownInterval = useRef(null);
 
   const heroDefault = 'Get started';
   const heroSubDefault = useMemo(
@@ -78,7 +91,29 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       if (otpExpiryInterval.current) clearInterval(otpExpiryInterval.current);
       if (resendCooldownInterval.current) clearInterval(resendCooldownInterval.current);
       if (rateLimitInterval.current) clearInterval(rateLimitInterval.current);
+      if (loginCooldownInterval.current) clearInterval(loginCooldownInterval.current);
     };
+  }, []);
+
+  const startLoginRateLimitCooldown = useCallback(() => {
+    const cooldownTime = LOGIN_COOLDOWN_TIME;
+    setLoginCooldown(cooldownTime);
+    setLoginCooldownLevel((prev) => prev + 1);
+    setShowLoginRateLimitScreen(true);
+    
+    if (loginCooldownInterval.current) clearInterval(loginCooldownInterval.current);
+    
+    loginCooldownInterval.current = setInterval(() => {
+      setLoginCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(loginCooldownInterval.current);
+          setLoginAttempts(0);
+          setShowLoginRateLimitScreen(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
   }, []);
 
   const startOtpTimer = useCallback(() => {
@@ -295,14 +330,36 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const isLoginStep = currentStep.startsWith('login');
-  const heroHeading = isLoginStep ? 'Welcome back' : heroDefault;
-  const heroSubheading = isLoginStep ? (
-    <>
-      Log in to your <span className="mint-brand">MINT</span> account
-    </>
-  ) : (
-    heroSubDefault
-  );
+  const isForgotPasswordStep = currentStep === 'forgotPassword' || currentStep === 'newPassword' || currentStep === 'confirmNewPassword';
+  
+  const getHeroHeading = () => {
+    if (currentStep === 'forgotPassword') return 'Reset password';
+    if (currentStep === 'newPassword' || currentStep === 'confirmNewPassword') return 'Create new password';
+    if (isLoginStep) return 'Welcome back';
+    return heroDefault;
+  };
+  
+  const getHeroSubheading = () => {
+    if (currentStep === 'forgotPassword') {
+      return resetEmailSent 
+        ? 'Check your email for the reset link'
+        : 'Enter your email to receive a reset link';
+    }
+    if (currentStep === 'newPassword' || currentStep === 'confirmNewPassword') {
+      return 'Choose a strong password for your account';
+    }
+    if (isLoginStep) {
+      return (
+        <>
+          Log in to your <span className="mint-brand">MINT</span> account
+        </>
+      );
+    }
+    return heroSubDefault;
+  };
+  
+  const heroHeading = getHeroHeading();
+  const heroSubheading = getHeroSubheading();
 
   const handleEmailContinue = () => {
     if (email && email.includes('@') && email.includes('.')) {
@@ -347,6 +404,11 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleLoginSubmit = async () => {
+    if (loginCooldown > 0) {
+      showToast('Too many attempts. Please wait before trying again.');
+      return;
+    }
+    
     if (!loginEmail || !loginEmail.includes('@') || !loginEmail.includes('.')) {
       showToast('Enter a valid email address.');
       return;
@@ -365,14 +427,100 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       });
       
       if (error) {
+        const newAttempts = loginAttempts + 1;
+        setLoginAttempts(newAttempts);
+        
+        if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+          startLoginRateLimitCooldown();
+          setLoginPassword('');
+          setIsLoading(false);
+          return;
+        }
+        
+        showToast(`Incorrect email or password. ${MAX_LOGIN_ATTEMPTS - newAttempts} attempts remaining.`);
+        setLoginPassword('');
+        setIsLoading(false);
+        return;
+      }
+      
+      setLoginAttempts(0);
+      if (onLoginComplete) {
+        onLoginComplete();
+      }
+    } catch (err) {
+      showToast('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = () => {
+    setResetEmail(loginEmail || '');
+    showStep('forgotPassword');
+  };
+
+  const handleSendResetEmail = async () => {
+    if (!resetEmail || !resetEmail.includes('@') || !resetEmail.includes('.')) {
+      showToast('Enter a valid email address.');
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/?reset=true`,
+      });
+      
+      if (error) {
         showToast(error.message);
         setIsLoading(false);
         return;
       }
       
-      if (onLoginComplete) {
-        onLoginComplete();
+      setResetEmailSent(true);
+      showToast('Password reset link sent to your email.');
+    } catch (err) {
+      showToast('An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleNewPasswordContinue = () => {
+    const strength = getPasswordStrength(newPassword);
+    if (strength.level < 3) {
+      showToast('Your password must meet all requirements to continue.');
+      return;
+    }
+    showStep('confirmNewPassword');
+  };
+
+  const handleConfirmNewPasswordSubmit = async () => {
+    if (newPassword !== confirmNewPassword) {
+      showToast("Passwords don't match.");
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+      
+      if (error) {
+        showToast(error.message);
+        setIsLoading(false);
+        return;
       }
+      
+      showToast('Password updated successfully!');
+      setTimeout(() => {
+        setNewPassword('');
+        setConfirmNewPassword('');
+        showStep('loginEmail');
+      }, 1500);
     } catch (err) {
       showToast('An error occurred. Please try again.');
     } finally {
@@ -573,26 +721,187 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
             </div>
 
             <div id="step-login-password" className={`step ${currentStep === 'loginPassword' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginPassword ? 'has-value' : ''}`}>
+              {showLoginRateLimitScreen ? (
+                <div className="otp-cooldown animate-on-load delay-4">
+                  <h4>Too many attempts</h4>
+                  <p>
+                    {loginCooldownLevel >= 2 
+                      ? 'Please contact support or try again later.'
+                      : `Please wait ${formatTime(loginCooldown)} before trying again.`
+                    }
+                  </p>
+                  <div className="flex flex-col gap-3 mt-4">
+                    <button
+                      type="button"
+                      className="text-sm text-foreground underline underline-offset-4"
+                      onClick={handleForgotPassword}
+                    >
+                      Reset Password
+                    </button>
+                    {loginCooldownLevel >= 2 && (
+                      <a href="#" className="text-sm text-foreground underline underline-offset-4">
+                        Contact Support
+                      </a>
+                    )}
+                  </div>
+                  <p className="dismiss-countdown">
+                    Time remaining: {formatTime(loginCooldown)}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginPassword ? 'has-value' : ''}`}>
+                    <PasswordInput
+                      id="login-password"
+                      placeholder="Password"
+                      required
+                      minLength={6}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      disabled={loginCooldown > 0}
+                    />
+                    <PrimaryButton ariaLabel="Sign in" onClick={handleLoginSubmit} disabled={loginCooldown > 0}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </PrimaryButton>
+                  </div>
+                  
+                  {loginAttempts > 0 && loginAttempts < MAX_LOGIN_ATTEMPTS && (
+                    <p className="otp-attempts">
+                      {MAX_LOGIN_ATTEMPTS - loginAttempts} attempts remaining
+                    </p>
+                  )}
+                  
+                  <div className="flex flex-col items-center gap-3">
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition"
+                      onClick={handleForgotPassword}
+                    >
+                      Forgot password?
+                    </button>
+                    <button
+                      type="button"
+                      id="back-to-login-email"
+                      className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
+                      onClick={() => showStep('loginEmail')}
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div id="step-forgot-password" className={`step ${currentStep === 'forgotPassword' ? 'active' : ''} space-y-8`}>
+              {resetEmailSent ? (
+                <div className="text-center space-y-6 animate-on-load delay-4">
+                  <div className="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    We've sent a password reset link to <span className="font-semibold text-foreground">{resetEmail}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Click the link in the email to create a new password.
+                  </p>
+                  <button
+                    type="button"
+                    className="text-sm text-foreground underline underline-offset-4 transition"
+                    onClick={() => {
+                      setResetEmailSent(false);
+                      showStep('loginEmail');
+                    }}
+                  >
+                    Back to login
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${resetEmail ? 'has-value' : ''}`}>
+                    <TextInput
+                      type="email"
+                      id="reset-email"
+                      placeholder="Your email"
+                      required
+                      autoComplete="email"
+                      value={resetEmail}
+                      onChange={(event) => setResetEmail(event.target.value)}
+                    />
+                    <PrimaryButton ariaLabel="Send reset link" onClick={handleSendResetEmail}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </PrimaryButton>
+                  </div>
+                  <button
+                    type="button"
+                    className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
+                    onClick={() => {
+                      setResetEmail('');
+                      showStep('loginPassword');
+                    }}
+                  >
+                    ← Back to login
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div id="step-new-password" className={`step ${currentStep === 'newPassword' ? 'active' : ''} space-y-6`}>
+              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${newPassword ? 'has-value' : ''}`}>
                 <PasswordInput
-                  id="login-password"
-                  placeholder="Password"
+                  id="new-password"
+                  placeholder="New password"
                   required
-                  minLength={6}
-                  value={loginPassword}
-                  onChange={(event) => setLoginPassword(event.target.value)}
+                  minLength={8}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
                 />
-                <PrimaryButton ariaLabel="Sign in" onClick={handleLoginSubmit}>
+                <PrimaryButton ariaLabel="Continue" onClick={handleNewPasswordContinue}>
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                  </svg>
+                </PrimaryButton>
+              </div>
+              
+              <PasswordStrengthIndicator password={newPassword} />
+            </div>
+
+            <div id="step-confirm-new-password" className={`step ${currentStep === 'confirmNewPassword' ? 'active' : ''} space-y-8`}>
+              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${confirmNewPassword ? 'has-value' : ''}`}>
+                <PasswordInput
+                  id="confirm-new-password"
+                  placeholder="Confirm new password"
+                  required
+                  value={confirmNewPassword}
+                  onChange={(event) => setConfirmNewPassword(event.target.value)}
+                />
+                <PrimaryButton ariaLabel="Update password" onClick={handleConfirmNewPasswordSubmit}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
                   </svg>
                 </PrimaryButton>
               </div>
+              
+              {confirmNewPassword && newPassword !== confirmNewPassword && (
+                <p className="text-sm text-center" style={{ color: '#FF3B30' }}>
+                  Passwords don't match
+                </p>
+              )}
+              {confirmNewPassword && newPassword === confirmNewPassword && (
+                <p className="text-sm text-center" style={{ color: '#34C759' }}>
+                  Passwords match
+                </p>
+              )}
+              
               <button
                 type="button"
-                id="back-to-login-email"
                 className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('loginEmail')}
+                onClick={() => showStep('newPassword')}
               >
                 ← Back
               </button>

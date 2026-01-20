@@ -32,13 +32,29 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - At least 1 number (0-9)
   - At least 1 special character
   - Only "Strong" passwords can proceed
-- **OTP Verification Flow**:
+- **OTP Verification Flow** (Signup):
   - 180 second code expiry (hidden timer - shows error only when user attempts expired code)
   - 30 second resend cooldown between requests
   - Max 5 resend/edit attempts before rate limit triggers
   - Max 5 incorrect OTP attempts before lockout
   - Progressive cooldowns: 5min first, 30min second, 30min+ shows "contact support"
   - Edit email counts as a resend attempt and returns directly to OTP page
+- **Login Flow**:
+  - Email → Password → Home (on success)
+  - Max 5 incorrect login attempts before 30-minute cooldown
+  - Shows remaining attempts after each failed login
+  - Rate limit screen with options: Reset Password or Contact Support
+  - Auto-dismiss rate limit screen after 10 seconds
+- **Forgot Password Flow**:
+  - Send password reset email via Supabase
+  - User clicks magic link in email
+  - Create new password (with strength validation)
+  - Confirm new password
+- **Supabase Integration**:
+  - User authentication (signup, login)
+  - Email verification (OTP)
+  - Password reset via magic link
+  - Environment variables: VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 - **iOS-Style UI**: Glassmorphism design with smooth animations
 
 ## Development
