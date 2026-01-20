@@ -497,8 +497,19 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleConfirmNewPasswordSubmit = async () => {
+    if (isLoading) return;
+    
     if (newPassword !== confirmNewPassword) {
       showToast("Passwords don't match.");
+      return;
+    }
+    
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      showToast('Session expired. Please request a new password reset link.');
+      setTimeout(() => {
+        showStep('forgotPassword');
+      }, 1500);
       return;
     }
     
