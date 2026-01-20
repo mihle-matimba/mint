@@ -283,7 +283,11 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleResendOtp = async () => {
-    if (resendCooldown > 0 || rateLimitCooldown > 0) return;
+    if (rateLimitCooldown > 0) {
+      showToast('Please wait before trying again.');
+      return;
+    }
+    if (resendCooldown > 0) return;
     
     const newResendAttempts = resendAttempts + 1;
     setResendAttempts(newResendAttempts);
@@ -321,7 +325,10 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   };
 
   const handleEditEmail = () => {
-    if (rateLimitCooldown > 0) return;
+    if (rateLimitCooldown > 0) {
+      showToast('Please wait before trying again.');
+      return;
+    }
     
     const newResendAttempts = resendAttempts + 1;
     setResendAttempts(newResendAttempts);
@@ -1106,13 +1113,15 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                       type="button"
                       className="otp-resend-btn"
                       onClick={handleResendOtp}
-                      disabled={resendCooldown > 0}
+                      disabled={resendCooldown > 0 || rateLimitCooldown > 0}
                     >
-                      {resendCooldown > 0 
-                        ? `Resend in ${resendCooldown}s` 
-                        : 'Resend Code'}
+                      {rateLimitCooldown > 0 
+                        ? `Try again in ${Math.floor(rateLimitCooldown / 60)}m ${rateLimitCooldown % 60}s`
+                        : resendCooldown > 0 
+                          ? `Resend in ${resendCooldown}s` 
+                          : 'Resend Code'}
                     </button>
-                    {resendAttempts > 0 && resendAttempts < MAX_RESEND_ATTEMPTS && (
+                    {resendAttempts > 0 && resendAttempts < MAX_RESEND_ATTEMPTS && rateLimitCooldown === 0 && (
                       <p className="text-xs text-muted-foreground mt-2">
                         {MAX_RESEND_ATTEMPTS - resendAttempts} resend attempts remaining
                       </p>
