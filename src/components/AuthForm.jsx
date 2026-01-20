@@ -820,7 +820,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   </div>
                   
                   {loginAttempts > 0 && loginAttempts < MAX_LOGIN_ATTEMPTS && (
-                    <p className="otp-attempts">
+                    <p className={`otp-attempts ${MAX_LOGIN_ATTEMPTS - loginAttempts <= 3 ? 'otp-error' : ''}`}>
                       {MAX_LOGIN_ATTEMPTS - loginAttempts} attempts remaining
                     </p>
                   )}
@@ -1097,7 +1097,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   )}
                   
                   {otpAttempts > 0 && otpAttempts < MAX_OTP_ATTEMPTS && !isLoading && otpExpiry > 0 && (
-                    <p className="otp-attempts">
+                    <p className={`otp-attempts ${MAX_OTP_ATTEMPTS - otpAttempts <= 3 ? 'otp-error' : ''}`}>
                       {MAX_OTP_ATTEMPTS - otpAttempts} attempts remaining
                     </p>
                   )}
@@ -1122,7 +1122,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                           : 'Resend Code'}
                     </button>
                     {resendAttempts > 0 && resendAttempts < MAX_RESEND_ATTEMPTS && rateLimitCooldown === 0 && (
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className={`text-xs mt-2 ${MAX_RESEND_ATTEMPTS - resendAttempts <= 3 ? 'text-red-500' : 'text-muted-foreground'}`}>
                         {MAX_RESEND_ATTEMPTS - resendAttempts} resend attempts remaining
                       </p>
                     )}
