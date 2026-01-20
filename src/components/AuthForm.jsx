@@ -684,7 +684,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   required
                   autoComplete="given-name"
                   value={firstName}
-                  onChange={(event) => setFirstName(event.target.value.replace(/[0-9]/g, ''))}
+                  onChange={(event) => setFirstName(event.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                 />
                 <PrimaryButton ariaLabel="Continue" onClick={handleFirstNameContinue}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -710,7 +710,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   required
                   autoComplete="family-name"
                   value={lastName}
-                  onChange={(event) => setLastName(event.target.value.replace(/[0-9]/g, ''))}
+                  onChange={(event) => setLastName(event.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                 />
                 <PrimaryButton ariaLabel="Continue" onClick={handleLastNameContinue}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
