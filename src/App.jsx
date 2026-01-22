@@ -39,6 +39,7 @@ const App = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
   const recoveryHandled = useRef(false);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
     if (hasError) {
@@ -74,6 +75,31 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (!supabase || isRecoveryMode) return;
+
+    const hydrateFromSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
+        setHasSession(Boolean(session));
+
+        if (session) {
+          const storedPage = window.localStorage.getItem("mint_current_page");
+          if (storedPage) {
+            setCurrentPage(storedPage);
+          }
+        } else if (currentPage === "userOnboarding" || currentPage === "home") {
+          setCurrentPage("welcome");
+        }
+      } catch {
+        setHasSession(false);
+      }
+    };
+
+    hydrateFromSession();
+  }, [currentPage]);
+
+  useEffect(() => {
     if (!supabase || isRecoveryMode) {
       return;
     }
@@ -99,7 +125,7 @@ const App = () => {
 
   useEffect(() => {
     if (isCheckingAuth) return;
-    
+
     setShowPreloader(true);
     const timeoutId = setTimeout(() => {
       setShowPreloader(false);
@@ -107,6 +133,13 @@ const App = () => {
 
     return () => clearTimeout(timeoutId);
   }, [currentPage, isCheckingAuth]);
+
+  useEffect(() => {
+    if (isRecoveryMode) return;
+    if (hasSession && currentPage) {
+      window.localStorage.setItem("mint_current_page", currentPage);
+    }
+  }, [currentPage, hasSession]);
 
   if (showPreloader) {
     return <Preloader />;
@@ -157,7 +190,7 @@ const App = () => {
     <AuthPage
       initialStep={authStep}
       onSignupComplete={() => setCurrentPage("userOnboarding")}
-      onLoginComplete={() => setCurrentPage("home")}
+      onLoginComplete={() => setCurrentPage("userOnboarding")}
     />
   );
 };
