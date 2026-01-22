@@ -2,8 +2,9 @@ import React from "react";
 
 const CreditPage = () => {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white">
+    <div>
       <h1 className="text-3xl font-semibold text-slate-900">Credit</h1>
+      <p className="mt-2 text-sm text-slate-600">Manage your credit options.</p>
     </div>
   );
 };
