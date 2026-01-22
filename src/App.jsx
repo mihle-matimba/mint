@@ -13,8 +13,8 @@ import Navbar from "./components/Navbar.jsx";
 const App = () => {
   const [showPreloader, setShowPreloader] = useState(true);
   
-  // Set to 'main' so we skip onboarding and see the Navbar immediately
-  const [currentPage, setCurrentPage] = useState("main"); 
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [currentPage, setCurrentPage] = useState(isLoggedIn ? "main" : "auth");
   const [activeTab, setActiveTab] = useState("home");
   const [authStep, setAuthStep] = useState("email");
 
@@ -45,8 +45,14 @@ const App = () => {
       return (
         <AuthPage
           initialStep={authStep}
-          onSignupComplete={() => setCurrentPage("main")}
-          onLoginComplete={() => setCurrentPage("main")}
+          onSignupComplete={() => {
+            setIsLoggedIn(true);
+            setCurrentPage("main");
+          }}
+          onLoginComplete={() => {
+            setIsLoggedIn(true);
+            setCurrentPage("main");
+          }}
         />
       );
     }
