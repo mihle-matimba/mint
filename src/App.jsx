@@ -6,6 +6,11 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
+import Navbar from "./components/Navbar.jsx";
+import CreditPage from "./pages/CreditPage.jsx";
+import InvestmentsPage from "./pages/InvestmentsPage.jsx";
+import MorePage from "./pages/MorePage.jsx";
+import TransactPage from "./pages/TransactPage.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -39,6 +44,7 @@ const App = () => {
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
   const recoveryHandled = useRef(false);
+  const [activeTab, setActiveTab] = useState("home");
 
   useEffect(() => {
     if (hasError) {
@@ -117,6 +123,14 @@ const App = () => {
     setCurrentPage("auth");
   };
 
+  const mainPages = {
+    home: <HomePage />,
+    credit: <CreditPage />,
+    transact: <TransactPage />,
+    investments: <InvestmentsPage />,
+    more: <MorePage />,
+  };
+
   if (currentPage === "linkExpired") {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
@@ -146,18 +160,54 @@ const App = () => {
   }
 
   if (currentPage === "home") {
-    return <HomePage />;
+    return (
+      <>
+        {mainPages[activeTab] ?? mainPages.home}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setCurrentPage(tab);
+          }}
+        />
+      </>
+    );
+  }
+
+  if (mainPages[currentPage]) {
+    return (
+      <>
+        {mainPages[currentPage]}
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={(tab) => {
+            setActiveTab(tab);
+            setCurrentPage(tab);
+          }}
+        />
+      </>
+    );
   }
 
   if (currentPage === "userOnboarding") {
-    return <UserOnboardingPage onComplete={() => setCurrentPage("home")} />;
+    return (
+      <UserOnboardingPage
+        onComplete={() => {
+          setActiveTab("home");
+          setCurrentPage("home");
+        }}
+      />
+    );
   }
 
   return (
     <AuthPage
       initialStep={authStep}
       onSignupComplete={() => setCurrentPage("userOnboarding")}
-      onLoginComplete={() => setCurrentPage("home")}
+      onLoginComplete={() => {
+        setActiveTab("home");
+        setCurrentPage("home");
+      }}
     />
   );
 };
