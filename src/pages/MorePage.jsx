@@ -3,7 +3,12 @@ import React from "react";
 const MorePage = () => {
   const handleSetupBiometrics = async () => {
     try {
-      const { Capacitor } = await import("@capacitor/core");
+      const Capacitor = window?.Capacitor;
+      if (!Capacitor) {
+        window.alert("Biometrics only works in the mobile app");
+        return;
+      }
+
       const isNative =
         typeof Capacitor.isNativePlatform === "function"
           ? Capacitor.isNativePlatform()
