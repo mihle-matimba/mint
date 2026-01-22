@@ -43,6 +43,11 @@ const MorePage = () => {
     localStorage.removeItem("biometricsEnabled");
   };
 
+  const handleSignOut = () => {
+    localStorage.removeItem("biometricsEnabled");
+    window.location.reload();
+  };
+
   const menuItems = [
     { id: "profile", label: "Profile Details" },
     { id: "kyc", label: "KYC Status" },
@@ -87,6 +92,20 @@ const MorePage = () => {
             {item.label}
           </button>
         ))}
+      </div>
+      <div className="mt-8 rounded-2xl border border-rose-100 bg-white p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-slate-900">Sign out</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Log out of your account on this device.
+          </p>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="w-full rounded-full bg-rose-600 px-4 py-3 text-xs font-semibold tracking-[0.16em] text-white transition active:scale-95"
+        >
+          SIGN OUT
+        </button>
       </div>
     </div>
   );

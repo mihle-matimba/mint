@@ -14,7 +14,7 @@ const App = () => {
   const [showPreloader, setShowPreloader] = useState(true);
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [currentPage, setCurrentPage] = useState(isLoggedIn ? "main" : "welcome");
+  const [currentPage, setCurrentPage] = useState("main");
   const [activeTab, setActiveTab] = useState("home");
   const [authStep, setAuthStep] = useState("email");
 
