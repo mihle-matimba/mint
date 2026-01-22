@@ -1,18 +1,86 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Home,
-  CreditCard,
-  Plus,
-  PieChart,
-  MoreHorizontal,
-  ArrowDownCircle,
-  Wallet,
-  TrendingUp,
-  Zap,
-  Gift
-} from "lucide-react";
+
+const IconBase = ({ children, className, ...props }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" {...props} className={className}>
+    {children}
+  </svg>
+);
+
+const HomeIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M3 11.5L12 4l9 7.5" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M5.5 10.5V20h13V10.5" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+  </IconBase>
+);
+
+const CreditIcon = (props) => (
+  <IconBase {...props}>
+    <rect x="3" y="6.5" width="18" height="11" rx="2" strokeWidth={1.6} />
+    <path d="M3 10h18" strokeWidth={1.6} strokeLinecap="round" />
+  </IconBase>
+);
+
+const PlusIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M12 5v14" strokeWidth={2} strokeLinecap="round" />
+    <path d="M5 12h14" strokeWidth={2} strokeLinecap="round" />
+  </IconBase>
+);
+
+const PieIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M12 3v9h9" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12 3a9 9 0 1 0 9 9" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+  </IconBase>
+);
+
+const MoreIcon = (props) => (
+  <IconBase {...props}>
+    <circle cx="5" cy="12" r="1.5" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.5" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.5" fill="currentColor" />
+  </IconBase>
+);
+
+const ArrowDownIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M12 4v12" strokeWidth={1.6} strokeLinecap="round" />
+    <path d="M7.5 12.5L12 17l4.5-4.5" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+  </IconBase>
+);
+
+const WalletIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M4 8.5h14.5a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4z" strokeWidth={1.6} />
+    <path d="M4 8.5V7a2 2 0 0 1 2-2h12" strokeWidth={1.6} />
+    <circle cx="16.5" cy="13.5" r="1.2" fill="currentColor" />
+  </IconBase>
+);
+
+const TrendingUpIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M4.5 15l5-5 4 4 6-6" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M14 8h5v5" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+  </IconBase>
+);
+
+const ZapIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M13 2L5 13h6l-1 9 8-11h-6z" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+  </IconBase>
+);
+
+const GiftIcon = (props) => (
+  <IconBase {...props}>
+    <path d="M4 11h16v9H4z" strokeWidth={1.6} strokeLinejoin="round" />
+    <path d="M12 11v9" strokeWidth={1.6} />
+    <path d="M4 11h16V8H4z" strokeWidth={1.6} strokeLinejoin="round" />
+    <path d="M7.5 8a2.5 2.5 0 1 1 4.5-1.5" strokeWidth={1.6} strokeLinecap="round" />
+    <path d="M16.5 8a2.5 2.5 0 1 0-4.5-1.5" strokeWidth={1.6} strokeLinecap="round" />
+  </IconBase>
+);
  
 const Navbar = ({ activeTab, setActiveTab }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -20,19 +88,19 @@ const Navbar = ({ activeTab, setActiveTab }) => {
   const plusButtonRef = useRef(null);
  
   const tabs = [
-    { id: "home", label: "Home", icon: Home },
-    { id: "credit", label: "Credit", icon: CreditCard },
-    { id: "transact", label: "Transact", icon: Plus, isCenter: true },
-    { id: "investments", label: "Investments", icon: PieChart },
-    { id: "more", label: "More", icon: MoreHorizontal },
+    { id: "home", label: "Home", icon: HomeIcon },
+    { id: "credit", label: "Credit", icon: CreditIcon },
+    { id: "transact", label: "Transact", icon: PlusIcon, isCenter: true },
+    { id: "investments", label: "Investments", icon: PieIcon },
+    { id: "more", label: "More", icon: MoreIcon },
   ];
  
   const transactActions = [
-    { id: "deposit", label: "Deposit", icon: ArrowDownCircle, angle: -180 },
-    { id: "payLoan", label: "Pay loan", icon: Wallet, angle: -135 },
-    { id: "invest", label: "Invest", icon: TrendingUp, angle: -90 },
-    { id: "credit", label: "Credit", icon: Zap, angle: -45 },
-    { id: "rewards", label: "Rewards", icon: Gift, angle: 0 },
+    { id: "deposit", label: "Deposit", icon: ArrowDownIcon, angle: -180 },
+    { id: "payLoan", label: "Pay loan", icon: WalletIcon, angle: -135 },
+    { id: "invest", label: "Invest", icon: TrendingUpIcon, angle: -90 },
+    { id: "credit", label: "Credit", icon: ZapIcon, angle: -45 },
+    { id: "rewards", label: "Rewards", icon: GiftIcon, angle: 0 },
   ];
  
   // The radius you specifically requested
@@ -160,7 +228,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
               }`}
             >
               <motion.div animate={{ rotate: isOpen ? 135 : 0 }}>
-                <Plus size={28} strokeWidth={1.5} />
+                <PlusIcon className="h-7 w-7" />
               </motion.div>
             </button>
           </div>
