@@ -10,7 +10,7 @@ import {
   isNativePlatform
 } from "../lib/biometrics";
 
-const MorePage = ({ onLogout }) => {
+const MorePage = () => {
   const [biometricsOn, setBiometricsOn] = useState(false);
   const [biometryType, setBiometryType] = useState(null);
   const [isAvailable, setIsAvailable] = useState(false);
@@ -75,7 +75,6 @@ const MorePage = ({ onLogout }) => {
     { id: "help", label: "Help & FAQs" },
     { id: "legal", label: "Legal" },
     { id: "privacy", label: "Privacy" },
-    { id: "logout", label: "Logout", onClick: onLogout, tone: "danger" },
   ];
 
   return (
@@ -116,9 +115,7 @@ const MorePage = ({ onLogout }) => {
           <button 
             key={item.id}
             onClick={item.onClick}
-            className={`w-full rounded-2xl bg-white p-5 text-left font-medium shadow-sm transition active:scale-95 ${
-              item.tone === "danger" ? "text-rose-600" : "text-slate-700"
-            }`}
+            className="w-full rounded-2xl bg-white p-5 text-left font-medium text-slate-700 shadow-sm transition active:scale-95"
           >
             {item.label}
           </button>
