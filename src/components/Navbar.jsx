@@ -1,7 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Haptics, ImpactStyle } from "@capacitor/haptics";
 import {
   Home,
   CreditCard,
@@ -39,7 +38,9 @@ const Navbar = ({ activeTab, setActiveTab }) => {
 
   const triggerHaptic = async (style) => {
     try {
-      await Haptics.impact({ style });
+      if (typeof window !== "undefined" && "vibrate" in window.navigator) {
+        window.navigator.vibrate(style === "heavy" ? 24 : style === "medium" ? 16 : 8);
+      }
     } catch (e) {
       console.log("Native haptics only");
     }
@@ -49,7 +50,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
     updateLayout();
     const newOpenState = !isOpen;
     setIsOpen(newOpenState);
-    triggerHaptic(newOpenState ? ImpactStyle.Heavy : ImpactStyle.Light);
+    triggerHaptic(newOpenState ? "heavy" : "light");
   };
 
   const updateLayout = () => {
@@ -106,7 +107,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
                   <button
                     key={action.label}
                     onClick={() => {
-                      triggerHaptic(ImpactStyle.Medium);
+                      triggerHaptic("medium");
                       setActiveTab(action.id === "invest" ? "investments" : action.id);
                       setIsOpen(false);
                     }}
@@ -190,7 +191,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
             <button
               key={tab.id}
               onClick={() => {
-                triggerHaptic(ImpactStyle.Light);
+                triggerHaptic("light");
                 setActiveTab(tab.id);
                 setIsOpen(false);
               }}
@@ -209,7 +210,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
             <button
               key={tab.id}
               onClick={() => {
-                triggerHaptic(ImpactStyle.Light);
+                triggerHaptic("light");
                 setActiveTab(tab.id);
                 setIsOpen(false);
               }}
