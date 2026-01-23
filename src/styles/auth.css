@@ -34,7 +34,7 @@ body {
   background: hsl(var(--background));
   color: hsl(var(--foreground));
   min-height: 100vh;
-  height: 100vh;
+  /* height: 100vh; - Removed to allow scrolling */
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
 }

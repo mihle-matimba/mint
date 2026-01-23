@@ -238,7 +238,7 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
         isDropdownOpen ? "dropdown-open" : ""
       }`}
     >
-      <div className="h-screen flex items-center justify-center px-4 relative">
+      <div className="min-h-screen flex items-center justify-center px-4 py-8 relative">
         <button
           type="button"
           onClick={handleBack}

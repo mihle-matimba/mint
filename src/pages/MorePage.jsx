@@ -1,7 +1,7 @@
 import React from "react";
 import { Capacitor } from "@capacitor/core";
 
-const MorePage = () => {
+const MorePage = ({ onLogout }) => {
   const isNative =
     typeof Capacitor.isNativePlatform === "function"
       ? Capacitor.isNativePlatform()
@@ -52,6 +52,7 @@ const MorePage = () => {
     { id: "help", label: "Help & FAQs" },
     { id: "legal", label: "Legal" },
     { id: "privacy", label: "Privacy" },
+    { id: "logout", label: "Logout", onClick: onLogout, tone: "danger" },
   ];
 
   return (
@@ -82,7 +83,9 @@ const MorePage = () => {
           <button 
             key={item.id}
             onClick={item.onClick}
-            className="w-full rounded-2xl bg-white p-5 text-left font-medium text-slate-700 shadow-sm transition active:scale-95"
+            className={`w-full rounded-2xl bg-white p-5 text-left font-medium shadow-sm transition active:scale-95 ${
+              item.tone === "danger" ? "text-rose-600" : "text-slate-700"
+            }`}
           >
             {item.label}
           </button>

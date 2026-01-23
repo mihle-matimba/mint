@@ -154,6 +154,19 @@ const App = () => {
     setCurrentPage("auth");
   };
 
+  const handleLogout = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } finally {
+      window.localStorage.removeItem("mint_current_page");
+      setHasSession(false);
+      setAuthStep("email");
+      setCurrentPage("welcome");
+    }
+  };
+
   if (currentPage === "linkExpired") {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center px-6">
@@ -217,7 +230,7 @@ const App = () => {
   if (currentPage === "more") {
     return (
       <AppLayout activeTab="more" onTabChange={setCurrentPage}>
-        <MorePage />
+        <MorePage onLogout={handleLogout} />
       </AppLayout>
     );
   }
