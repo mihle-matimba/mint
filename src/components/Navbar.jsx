@@ -11,23 +11,23 @@ import {
   Wallet,
   TrendingUp,
   Zap,
-  Gift
+  Gift,
+  X
 } from "lucide-react";
- 
+
 const Navbar = ({ activeTab, setActiveTab }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [wheelCenter, setWheelCenter] = useState({ x: 0, y: 0 });
+  const [dynamicRadius, setDynamicRadius] = useState(145);
   const plusButtonRef = useRef(null);
-  const navRef = useRef(null);
- 
+
   const tabs = [
     { id: "home", label: "Home", icon: Home },
     { id: "credit", label: "Credit", icon: CreditCard },
-    { id: "transact", label: "Transact", icon: Plus, isCenter: true },
-    { id: "investments", label: "Investments", icon: PieChart },
+    { id: "investments", label: "Portfolio", icon: PieChart },
     { id: "more", label: "More", icon: MoreHorizontal },
   ];
- 
+
   const transactActions = [
     { id: "deposit", label: "Deposit", icon: ArrowDownCircle, angle: -180 },
     { id: "payLoan", label: "Pay loan", icon: Wallet, angle: -135 },
@@ -35,99 +35,100 @@ const Navbar = ({ activeTab, setActiveTab }) => {
     { id: "credit", label: "Credit", icon: Zap, angle: -45 },
     { id: "rewards", label: "Rewards", icon: Gift, angle: 0 },
   ];
- 
-  // The radius you specifically requested
-  const radius = 145;
- 
-  const updateWheelCenter = () => {
+
+  const triggerHaptic = async (style) => {
+    try {
+      if (typeof window !== "undefined" && "vibrate" in window.navigator) {
+        window.navigator.vibrate(style === "heavy" ? 24 : style === "medium" ? 16 : 8);
+      }
+    } catch (e) {
+      console.log("Native haptics only");
+    }
+  };
+
+  const toggleMenu = () => {
+    updateLayout();
+    const newOpenState = !isOpen;
+    setIsOpen(newOpenState);
+    triggerHaptic(newOpenState ? "heavy" : "light");
+  };
+
+  const updateLayout = () => {
     if (plusButtonRef.current) {
       const rect = plusButtonRef.current.getBoundingClientRect();
       setWheelCenter({
         x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
+        y: rect.top + rect.height / 2 - 10,
       });
-    }
-  };
 
-  const updateNavbarHeight = () => {
-    if (navRef.current) {
-      const { offsetHeight } = navRef.current;
-      document.documentElement.style.setProperty("--navbar-height", `${offsetHeight}px`);
+      const calculatedRadius = Math.min(145, (window.innerWidth - 110) / 2);
+      setDynamicRadius(calculatedRadius);
     }
   };
 
   useLayoutEffect(() => {
-    updateWheelCenter();
-    updateNavbarHeight();
-    window.addEventListener("resize", updateWheelCenter);
-    window.addEventListener("resize", updateNavbarHeight);
-    return () => {
-      window.removeEventListener("resize", updateWheelCenter);
-      window.removeEventListener("resize", updateNavbarHeight);
-    };
+    updateLayout();
+    window.addEventListener("resize", updateLayout);
+    return () => window.removeEventListener("resize", updateLayout);
   }, []);
 
-  useLayoutEffect(() => {
-    updateNavbarHeight();
-  }, [isOpen]);
- 
   return (
     <>
-      {/* 1-2. Backdrop Blur + Rotating Menu Items */}
       {createPortal(
-        <div className="fixed inset-0 z-[9999] pointer-events-none">
+        <div className="fixed inset-0 z-[10000] pointer-events-none">
           <AnimatePresence>
             {isOpen && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setIsOpen(false)}
-                className="fixed inset-0 pointer-events-auto bg-black/10 backdrop-blur-[8px]"
+                onClick={toggleMenu}
+                className="fixed inset-0 pointer-events-auto bg-white/40 backdrop-blur-[12px]"
               />
             )}
           </AnimatePresence>
+
           <AnimatePresence>
             {isOpen && (
               <motion.div
                 initial={{ rotate: -180, opacity: 0, scale: 0.8 }}
                 animate={{ rotate: 0, opacity: 1, scale: 1 }}
                 exit={{ rotate: 180, opacity: 0, scale: 0.8 }}
-                transition={{ type: "spring", stiffness: 100, damping: 22 }}
-                className="fixed pointer-events-none"
-                style={{
-                  left: wheelCenter.x,
-                  top: wheelCenter.y,
-                  width: 0,
-                  height: 0,
+                transition={{
+                  type: "spring",
+                  stiffness: 120,
+                  damping: 18,
+                  duration: 0.45
                 }}
+                className="fixed pointer-events-none"
+                style={{ left: wheelCenter.x, top: wheelCenter.y, width: 0, height: 0 }}
               >
                 {transactActions.map((action) => (
                   <button
                     key={action.label}
                     onClick={() => {
-                      if(action.id === "invest") setActiveTab("investments");
+                      triggerHaptic("medium");
+                      setActiveTab(action.id === "invest" ? "investments" : action.id);
                       setIsOpen(false);
                     }}
                     className="absolute flex items-center justify-center group pointer-events-auto"
                     style={{
-                      left: `${Math.cos(action.angle * (Math.PI / 180)) * radius}px`,
-                      top: `${Math.sin(action.angle * (Math.PI / 180)) * radius}px`,
+                      left: `${Math.cos(action.angle * (Math.PI / 180)) * dynamicRadius}px`,
+                      top: `${Math.sin(action.angle * (Math.PI / 180)) * dynamicRadius}px`,
                       transform: "translate(-50%, -50%)",
                     }}
                   >
-                    <div className="glass flex h-20 w-20 flex-col items-center justify-center gap-1.5 border border-white/40 bg-white/30 shadow-2xl transition-all duration-300 group-active:scale-95 group-hover:bg-white/50">
+                    {/* Background changed to Deep MINT Purple (#31005e) for better contrast */}
+                    <div className="flex h-20 w-20 flex-col items-center justify-center gap-1.5 rounded-full border border-white/20 bg-[#31005e]/40 shadow-2xl transition-all group-active:scale-95 backdrop-blur-md">
                       <motion.div
                         initial={{ rotate: 180 }}
                         animate={{ rotate: 0 }}
                         exit={{ rotate: -180 }}
-                        transition={{ type: "spring", stiffness: 100, damping: 22 }}
+                        transition={{ duration: 0.45 }}
                         className="flex flex-col items-center"
                       >
-                        <action.icon size={22} strokeWidth={1.2} className="text-slate-800" />
-                        <span className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-slate-700">
-                          {action.label}
-                        </span>
+                        <action.icon size={24} strokeWidth={1.5} className="text-white" />
+                        <span className="mt-1 text-[8px] font-bold uppercase tracking-[0.1em] text-white">{action.label}</span>
                       </motion.div>
                     </div>
                   </button>
@@ -135,76 +136,96 @@ const Navbar = ({ activeTab, setActiveTab }) => {
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Elevated Center Button Anchor */}
+          <div
+            className="fixed pointer-events-none flex items-center justify-center w-full"
+            style={{
+              left: 0,
+              bottom: "calc(1rem + env(safe-area-inset-bottom) + 29px)",
+              height: 0
+            }}
+          >
+            <button
+              onClick={toggleMenu}
+              className={`absolute pointer-events-auto z-[10001] flex h-16 w-16 -translate-y-1/2 items-center justify-center rounded-full shadow-2xl transition-all active:scale-90 ${
+                isOpen ? "bg-white text-[#31005e]" : "bg-black text-white"
+              }`}
+              style={{ marginTop: "-29px" }}
+            >
+              <div className="relative h-10 w-10 flex items-center justify-center overflow-hidden">
+                <AnimatePresence mode="wait">
+                  {!isOpen ? (
+                    <motion.div
+                      key="plus-icon"
+                      initial={{ opacity: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.5 }}
+                      className="flex h-full w-full items-center justify-center"
+                    >
+                      <Plus size={32} strokeWidth={2.5} />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="close"
+                      initial={{ rotate: -90, opacity: 0 }}
+                      animate={{ rotate: 0, opacity: 1 }}
+                      exit={{ rotate: 90, opacity: 0 }}
+                      className="flex h-full w-full items-center justify-center"
+                    >
+                      <X size={32} strokeWidth={3} className="text-[#31005e]" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </button>
+          </div>
         </div>,
         document.body
       )}
- 
-      {/* 3. Bottom Navbar */}
-      <nav
-        ref={navRef}
-        className={`fixed bottom-0 left-0 right-0 z-[1000] border-t border-white/20 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-2 transition-all duration-500 ${
-          isOpen ? "bg-white/80 backdrop-blur-3xl" : "bg-white/70 backdrop-blur-2xl"
-        }`}
-      >
-        <div className="relative mx-auto flex w-full max-w-lg items-center justify-between px-4">
-          <div className="nav-items contents" data-open={isOpen}>
-            {tabs.slice(0, 2).map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setIsOpen(false); }}
-                  className={`flex flex-1 flex-col items-center justify-center gap-1 leading-none transition-[filter,opacity] duration-[180ms] ease-in-out ${
-                    isActive ? "text-indigo-600 scale-110" : "text-slate-400 opacity-60"
-                  } ${isOpen ? "blur-[2px] opacity-60" : ""}`}
-                >
-                  <tab.icon size={20} strokeWidth={isActive ? 1.8 : 1.2} />
-                  <span className="text-[8px] font-black uppercase tracking-[0.1em]">
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-1 items-center justify-center">
+
+      {/* Main Bottom Bar - Position Fixed ensures it never scrolls */}
+      <nav className="fixed bottom-0 left-0 right-0 z-[1000] border-t border-white/10 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3 bg-white/70 backdrop-blur-2xl">
+        <div className="relative mx-auto grid w-full max-w-lg grid-cols-5 items-center px-4">
+          {tabs.slice(0, 2).map((tab) => (
             <button
-              ref={plusButtonRef}
+              key={tab.id}
               onClick={() => {
-                updateWheelCenter();
-                setIsOpen(!isOpen);
+                triggerHaptic("light");
+                setActiveTab(tab.id);
+                setIsOpen(false);
               }}
-              className={`relative z-[90] flex h-14 w-14 -translate-y-1/2 items-center justify-center rounded-full bg-slate-900 text-white shadow-xl transition-all active:scale-90 ${
-                isOpen ? "blur-none opacity-100" : ""
-              }`}
+              className={`flex flex-col items-center justify-center gap-1 transition-all ${
+                activeTab === tab.id ? "text-[#31005e] scale-110" : "text-slate-400 opacity-60"
+              } ${isOpen ? "blur-[2px] opacity-40" : ""}`}
             >
-              <motion.div animate={{ rotate: isOpen ? 135 : 0 }}>
-                <Plus size={28} strokeWidth={1.5} />
-              </motion.div>
+              <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 1.5} />
+              <span className="text-[8px] font-black uppercase tracking-[0.1em]">{tab.label}</span>
             </button>
-          </div>
-          <div className="nav-items contents" data-open={isOpen}>
-            {tabs.slice(3).map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setIsOpen(false); }}
-                  className={`flex flex-1 flex-col items-center justify-center gap-1 leading-none transition-[filter,opacity] duration-[180ms] ease-in-out ${
-                    isActive ? "text-indigo-600 scale-110" : "text-slate-400 opacity-60"
-                  } ${isOpen ? "blur-[2px] opacity-60" : ""}`}
-                >
-                  <tab.icon size={20} strokeWidth={isActive ? 1.8 : 1.2} />
-                  <span className="text-[8px] font-black uppercase tracking-[0.1em]">
-                    {tab.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          ))}
+
+          <div className="flex items-center justify-center h-16" ref={plusButtonRef} />
+
+          {tabs.slice(2).map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => {
+                triggerHaptic("light");
+                setActiveTab(tab.id);
+                setIsOpen(false);
+              }}
+              className={`flex flex-col items-center justify-center gap-1 transition-all ${
+                activeTab === tab.id ? "text-[#31005e] scale-110" : "text-slate-400 opacity-60"
+              } ${isOpen ? "blur-[2px] opacity-40" : ""}`}
+            >
+              <tab.icon size={22} strokeWidth={activeTab === tab.id ? 2.5 : 1.5} />
+              <span className="text-[8px] font-black uppercase tracking-[0.1em]">{tab.label}</span>
+            </button>
+          ))}
         </div>
       </nav>
     </>
   );
 };
- 
+
 export default Navbar;
