@@ -1,0 +1,15 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
+
+if (!hasSupabaseConfig && import.meta.env.DEV) {
+  console.info(
+    'Supabase client disabled. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see README) to enable it.'
+  );
+}
+
+export const supabase = hasSupabaseConfig
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;

@@ -30,3 +30,8 @@ npm run deploy
 - This project uses Vite + React with Tailwind CSS built through PostCSS.
 - The Vite base path is configured to `./` so static assets resolve on both GitHub Pages and Vercel. If you need a fixed base URL, update `vite.config.js`.
 - Ensure `public/assets/fonts/future-earth.ttf` exists in the repo; it is required for the branded font to load correctly.
+
+## Supabase configuration
+
+- Copy `.env.example` to `.env` (or `.env.local`) and replace the placeholders with your Supabase project's `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+- Restart `npm run dev` whenever you change environment variables so Vite can pick them up.
