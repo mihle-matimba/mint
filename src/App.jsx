@@ -29,6 +29,7 @@ import WithdrawPage from "./pages/WithdrawPage.jsx";
 import ProfileDetailsPage from "./pages/ProfileDetailsPage.jsx";
 import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
 import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
+import TruIDStep1Page from "./pages/TruIDStep1Page.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -194,11 +195,12 @@ const App = () => {
     return (
       <AppLayout activeTab="credit" onTabChange={setCurrentPage}>
         <CreditPage
-          onOpenNotifications={() => {
-            setNotificationReturnPage("credit");
-            setCurrentPage("notifications");
-          }}
-        />
+            onOpenNotifications={() => {
+              setNotificationReturnPage("credit");
+              setCurrentPage("notifications");
+            }}
+            onOpenTruID={() => setCurrentPage("truidStep1")}
+          />
       </AppLayout>
     );
   }
@@ -351,11 +353,15 @@ const App = () => {
   }
 
   if (currentPage === "creditApply") {
-    return <CreditApplyPage />;
+    return <CreditApplyPage onStartTruID={() => setCurrentPage("truidStep1")} />;
   }
 
   if (currentPage === "creditRepay") {
     return <CreditRepayPage />;
+  }
+
+  if (currentPage === "truidStep1") {
+    return <TruIDStep1Page onBack={() => setCurrentPage("creditApply")} />;
   }
 
   if (currentPage === "changePassword") {

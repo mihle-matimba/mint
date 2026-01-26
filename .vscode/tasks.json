@@ -11,5 +11,18 @@
       },
       "problemMatcher": []
     }
+    ,
+    {
+      "label": "npm: install",
+      "type": "shell",
+      "command": "npm install",
+      "problemMatcher": []
+    }
+    {
+      "label": "npm: start-api",
+      "type": "shell",
+      "command": "npm run start:api",
+      "problemMatcher": []
+    }
   ]
 }
