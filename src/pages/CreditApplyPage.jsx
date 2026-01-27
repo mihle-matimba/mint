@@ -16,6 +16,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
   const [debugLog, setDebugLog] = useState([]);
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
+   const lastStatusRef = useRef(null);
 
   const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
@@ -75,12 +76,21 @@ const ConnectionStage = ({ onComplete, onError }) => {
         try {
            const res = await fetch(`/api/banking/status?collectionId=${collectionId}`);
            const data = await res.json();
-           const s = String(data.currentStatus || "").toUpperCase();
-           
-           // Only log status changes or interesting events to avoid spam
-           if (Math.random() > 0.7) addLog(`Poll Status: ${s}`);
+           const rawStatus = data.currentStatus;
+           const s = String(rawStatus || "").toUpperCase();
+           const numericStatus = Number(rawStatus);
+           const hasNumericStatus = Number.isFinite(numericStatus);
+           const isComplete = s.includes("SUCCESS") || s.includes("COMPLETED") || (hasNumericStatus && numericStatus >= 2000 && numericStatus < 3000);
+           const isFailed = s.includes("FAILED") || s.includes("CANCELLED") || s.includes("ERROR");
 
-           if (s.includes("SUCCESS") || s.includes("COMPLETED")) {
+           const statusSignature = JSON.stringify({ status: rawStatus });
+           if (statusSignature !== lastStatusRef.current) {
+             addLog(`Poll Status: ${hasNumericStatus ? numericStatus : s || rawStatus}`);
+             addLog(`Status Payload: ${JSON.stringify(data)}`);
+             lastStatusRef.current = statusSignature;
+           }
+
+           if (isComplete) {
               clearInterval(pollingRef.current);
               setStatus("capturing");
               setMessage("Analyzing banking data...");
@@ -131,11 +141,11 @@ const ConnectionStage = ({ onComplete, onError }) => {
                   addLog(`Capture Error Exception: ${err.message}`);
               }
 
-           } else if (s.includes("FAILED") || s.includes("CANCELLED")) {
+           } else if (isFailed) {
               clearInterval(pollingRef.current);
               setStatus("error");
               setMessage("Bank connection was cancelled or failed.");
-              addLog(`Polling Failed Status: ${s}`);
+              addLog(`Polling Failed Status: ${s || rawStatus}`);
            }
         } catch (e) {
            console.error("Polling error", e);
