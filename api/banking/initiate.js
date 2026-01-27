@@ -121,11 +121,18 @@ export default async function handler(req, res) {
     .single();
 
   if (profileError || !profile) {
+    console.error('[api/banking/initiate] profile lookup failed', {
+      userId: userData.user.id,
+      profileError: profileError?.message || null,
+      supabaseAdmin: !!supabaseAdmin
+    });
+
     if (!supabaseAdmin) {
       return res.status(404).json({
         success: false,
         error: 'Profile not found',
-        details: 'Missing SUPABASE_SERVICE_ROLE_KEY or RLS policy prevents access.'
+        details:
+          'Profile lookup failed. Missing SUPABASE_SERVICE_ROLE_KEY or RLS policy may prevent access. Provide SUPABASE_SERVICE_ROLE_KEY on the server to allow read/create, or ensure a profile row exists.'
       });
     }
 
@@ -146,6 +153,7 @@ export default async function handler(req, res) {
       .single();
 
     if (createError || !createdProfile) {
+      console.error('[api/banking/initiate] failed to create profile', { createError: createError?.message });
       return res.status(500).json({
         success: false,
         error: 'Profile not found and could not be created',

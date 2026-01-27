@@ -24,5 +24,12 @@
       "command": "npm run start:api",
       "problemMatcher": []
     }
+    ,
+    {
+      "label": "git: push",
+      "type": "shell",
+      "command": "git push origin main",
+      "problemMatcher": []
+    }
   ]
 }
