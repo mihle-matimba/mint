@@ -16,7 +16,7 @@ const creditOverview = {
   utilisationPercent: 62,
 };
 
-const CreditPage = ({ onOpenNotifications, onOpenTruID }) => {
+const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => {
   const [view, setView] = useState(() =>
     window.location.pathname === "/credit/score" ? "score" : "overview"
   );
@@ -145,7 +145,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID }) => {
                 },
                 {
                   label: "Upload bank statements",
-                  onClick: () => console.log("Upload bank statements"),
+                  onClick: () => onOpenCreditStep2 ? onOpenCreditStep2() : console.log("Upload bank statements"),
                 },
                 {
                   label: "Verify identity",

@@ -6,6 +6,7 @@ import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
+import CreditStep2Page from "./pages/CreditStep2Page.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
 import InvestAmountPage from "./pages/InvestAmountPage.jsx";
@@ -200,7 +201,16 @@ const App = () => {
               setCurrentPage("notifications");
             }}
             onOpenTruID={() => setCurrentPage("truidStep1")}
+            onOpenCreditStep2={() => setCurrentPage("creditStep2")}
           />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "creditStep2") {
+    return (
+      <AppLayout activeTab="credit" onTabChange={setCurrentPage}>
+        <CreditStep2Page onBack={() => setCurrentPage("credit")} />
       </AppLayout>
     );
   }
