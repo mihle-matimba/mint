@@ -62,7 +62,7 @@ export default async function handler(req, res) {
   const profileClient = supabaseAdmin || supabase;
   const { data: profile, error: profileError } = await profileClient
     .from('profiles')
-    .select('id,first_name,last_name,email,email_address,id_number,phone')
+    .select('id,first_name,last_name,email,email_address,id_number,phone,phone_number')
     .eq('id', userData.user.id)
     .maybeSingle();
 
@@ -80,6 +80,7 @@ export default async function handler(req, res) {
     profileFound: Boolean(profile),
     profileError: profileError?.message || null,
     userProfileFound: Boolean(userProfile),
-    userProfileError: userProfileError?.message || null
+    userProfileError: userProfileError?.message || null,
+    profile: profile || null
   });
 }

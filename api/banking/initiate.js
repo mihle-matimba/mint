@@ -126,45 +126,45 @@ export default async function handler(req, res) {
   const profileClient = supabaseAdmin || supabase;
   let { data: profile, error: profileError } = await profileClient
     .from('profiles')
-    .select('first_name,last_name,id_number,phone,email,email_address')
+    .select('first_name,last_name,id_number,phone,phone_number,email,email_address')
     .eq('id', userData.user.id)
     .single();
 
     if (profileError || !profile) {
       const newProfile = {
         id: userData.user.id,
-        email: userData.user.email,
-        email_address: userData.user.email,
+        email: userData.user.email || null,
+        email_address: userData.user.email || null,
         first_name: userData.user.user_metadata?.first_name || userData.user.user_metadata?.firstName || '',
         last_name: userData.user.user_metadata?.last_name || userData.user.user_metadata?.lastName || '',
         id_number: userData.user.user_metadata?.id_number || userData.user.user_metadata?.idNumber || '',
-        phone: userData.user.user_metadata?.phone || userData.user.phone || ''
+        // write both `phone` and legacy `phone_number` when possible
+        phone: userData.user.user_metadata?.phone || userData.user.phone || '',
+        phone_number: userData.user.user_metadata?.phone || userData.user.phone || ''
       };
 
-      const insertClient = supabaseAdmin || createUserClient(accessToken);
-      const { data: createdProfile, error: createError } = await insertClient
-        .from('profiles')
-        .insert(newProfile)
-        .select('first_name,last_name,id_number,phone,email,email_address')
-        .single();
+      try {
+        const { data: createdProfile, error: createError } = await profileClient
+          .from('profiles')
+          .insert(newProfile)
+          .select('first_name,last_name,id_number,phone,phone_number,email,email_address')
+          .single();
 
-      if (createError || !createdProfile) {
-        return res.status(403).json({
-          success: false,
-          error: 'Profile not found',
-          details:
-            createError?.message ||
-            'Profile lookup failed and could not be created. Ensure RLS allows the user to insert into profiles or set SUPABASE_SERVICE_ROLE_KEY on the server.'
-        });
+        if (createError || !createdProfile) {
+          console.error('[api/banking/initiate] failed to create profile', { createError: createError?.message, createdProfile });
+        } else {
+          profile = createdProfile;
+        }
+      } catch (e) {
+        console.error('[api/banking/initiate] exception creating profile', e?.message || e);
       }
-
-      profile = createdProfile;
     }
 
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(' ').trim();
   const idNumber = profile.id_number ? String(profile.id_number).trim() : '';
-  const email = profile.email || profile.email_address || '';
-  const mobile = profile.phone || '';
+  const email = profile.email || profile.email_address || profile.email || '';
+  // support legacy column `phone_number` if `phone` is absent
+  const mobile = profile.phone || profile.phone_number || '';
 
   if (!fullName || !idNumber) {
     return res.status(400).json({
