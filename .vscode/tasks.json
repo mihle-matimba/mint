@@ -47,6 +47,13 @@
     }
     ,
     {
+      "label": "git: status",
+      "type": "shell",
+      "command": "git status --porcelain",
+      "problemMatcher": []
+    }
+    ,
+    {
       "label": "git: commit-and-push",
       "type": "shell",
       "command": "git add -A && git commit -m \"Allow profile creation with user token and logging\" || echo 'no changes to commit' && git push origin main",
