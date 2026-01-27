@@ -6,7 +6,6 @@ import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
-import CreditStep2Page from "./pages/CreditStep2Page.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
 import InvestAmountPage from "./pages/InvestAmountPage.jsx";
@@ -30,7 +29,6 @@ import WithdrawPage from "./pages/WithdrawPage.jsx";
 import ProfileDetailsPage from "./pages/ProfileDetailsPage.jsx";
 import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
 import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
-import TruIDStep1Page from "./pages/TruIDStep1Page.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -200,19 +198,14 @@ const App = () => {
               setNotificationReturnPage("credit");
               setCurrentPage("notifications");
             }}
-            onOpenTruID={() => setCurrentPage("truidStep1")}
-            onOpenCreditStep2={() => setCurrentPage("creditStep2")}
+            onOpenTruID={() => setCurrentPage("creditApply")}
           />
       </AppLayout>
     );
   }
 
-  if (currentPage === "creditStep2") {
-    return (
-      <AppLayout activeTab="credit" onTabChange={setCurrentPage}>
-        <CreditStep2Page onBack={() => setCurrentPage("credit")} />
-      </AppLayout>
-    );
+  if (currentPage === "creditApply") {
+    return <CreditApplyPage onBack={() => setCurrentPage("credit")} />;
   }
 
   if (currentPage === "transact") {
@@ -362,16 +355,8 @@ const App = () => {
     return <ActionsPage onBack={() => setCurrentPage("home")} />;
   }
 
-  if (currentPage === "creditApply") {
-    return <CreditApplyPage onStartTruID={() => setCurrentPage("truidStep1")} />;
-  }
-
   if (currentPage === "creditRepay") {
     return <CreditRepayPage />;
-  }
-
-  if (currentPage === "truidStep1") {
-    return <TruIDStep1Page onBack={() => setCurrentPage("creditApply")} />;
   }
 
   if (currentPage === "changePassword") {
