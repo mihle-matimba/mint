@@ -262,7 +262,8 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           interest_rate: effectiveRate,
           salary_date: salaryPaymentDay,
           repayment_schedule: repaymentSchedule,
-          step_number: 4
+          step_number: 4,
+          status: "Submitted"
         });
         didSubmit = Boolean(updated);
       }
