@@ -413,6 +413,14 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
       const tenureMonths = engineResult?.breakdown?.employmentTenure?.monthsInCurrentJob;
 
       const hasAssessment = score > 0 || isCalculating;
+      const isDeclined = !isCalculating && score > 0 && score < 50;
+      const scoreOutcome = score >= 80
+         ? "Auto-approval at best rate"
+         : score >= 70
+            ? "Approval with risk-adjusted pricing"
+            : score >= 50
+               ? "Borderline – manual review"
+               : "Decline";
 
       const progressDeg = (isCalculating ? loaderValue : score) * 3.6;
 
@@ -498,6 +506,15 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
 
                   {!isCalculating && score > 0 && (
                      <div className="pt-8 border-t border-slate-50 mt-8 space-y-4">
+                        <div className={`rounded-xl border px-4 py-3 text-sm font-semibold ${
+                           isDeclined
+                             ? "border-red-200 bg-red-50 text-red-700"
+                             : score >= 80
+                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                               : "border-amber-200 bg-amber-50 text-amber-700"
+                        }`}>
+                           {scoreOutcome}
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                            <div className="bg-slate-50 p-3 rounded-xl text-center">
                               <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Credit Score</p>
@@ -615,9 +632,10 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
                            <button
                               type="button"
                               onClick={onContinue}
-                              className="w-full mt-2 py-4 rounded-full bg-slate-900 text-white text-sm font-semibold uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 hover:-translate-y-0.5 transition-all"
+                              disabled={isDeclined}
+                              className="w-full mt-2 py-4 rounded-full bg-slate-900 text-white text-sm font-semibold uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                            >
-                              Continue to loan configuration
+                              {isDeclined ? "Loan declined" : "Continue to loan configuration"}
                            </button>
                         )}
                      </div>
@@ -694,12 +712,13 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
 
          const { data: scoreData } = await supabase
             .from("loan_engine_score")
-            .select("id")
+            .select("engine_score")
             .eq("user_id", userId)
+            .order("run_at", { ascending: false })
             .limit(1)
             .maybeSingle();
 
-         if (scoreData?.id && onComplete) {
+         if (Number.isFinite(scoreData?.engine_score) && scoreData.engine_score >= 50 && onComplete) {
             onComplete();
          }
       };
