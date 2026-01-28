@@ -56,8 +56,9 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
   const [currentStep, setCurrentStep] = useState("amount");
   const [loanAmount, setLoanAmount] = useState("");
   const [loanMonths, setLoanMonths] = useState("");
-  const [repaymentDate, setRepaymentDate] = useState("");
-  const [salaryDate, setSalaryDate] = useState("");
+  const [salaryPaymentDay, setSalaryPaymentDay] = useState(null);
+  const [firstRepaymentDate, setFirstRepaymentDate] = useState("");
+  const [repaymentSchedule, setRepaymentSchedule] = useState([]);
   const [monthlyRepayment, setMonthlyRepayment] = useState(0);
   const [maxLoanAmount, setMaxLoanAmount] = useState(DEFAULT_MAX_LOAN);
   const [disclaimerText, setDisclaimerText] = useState("Maximum loan cap: R5,000");
@@ -68,14 +69,6 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
   const disclaimerTimer = useRef(null);
 
   const today = useMemo(() => new Date(), []);
-  const maxDate = useMemo(() => {
-    const date = new Date();
-    date.setDate(date.getDate() + 30);
-    return date;
-  }, []);
-
-  const minDate = useMemo(() => formatDate(today), [today]);
-  const maxDateString = useMemo(() => formatDate(maxDate), [maxDate]);
 
   useEffect(() => {
     const init = async () => {
@@ -89,10 +82,10 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           setLoanMonths(String(record.number_of_months));
         }
         if (record.first_repayment_date) {
-          setRepaymentDate(record.first_repayment_date);
+          setFirstRepaymentDate(record.first_repayment_date);
         }
         if (record.salary_date) {
-          setSalaryDate(String(record.salary_date));
+          setSalaryPaymentDay(Number(record.salary_date));
         }
       }
 
@@ -102,11 +95,18 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
         if (userId) {
           const { data: snapshotData } = await supabase
             .from("truid_bank_snapshots")
-            .select("net_monthly_income,avg_monthly_income,avg_monthly_expenses")
+            .select("net_monthly_income,avg_monthly_income,avg_monthly_expenses,salary_payment_date")
             .eq("user_id", userId)
             .order("captured_at", { ascending: false })
             .limit(1)
             .maybeSingle();
+
+          if (snapshotData?.salary_payment_date) {
+            const day = new Date(snapshotData.salary_payment_date).getDate();
+            if (Number.isFinite(day)) {
+              setSalaryPaymentDay(day);
+            }
+          }
 
           const netIncome = Number(snapshotData?.net_monthly_income)
             || (Number(snapshotData?.avg_monthly_income) - Number(snapshotData?.avg_monthly_expenses))
@@ -136,7 +136,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
     ? "Continue"
     : currentStep === "months"
       ? "Configure Months"
-      : "Confirm Date";
+      : "Confirm Schedule";
 
   const animateDisclaimer = (nextText) => {
     setDisclaimerVisible(false);
@@ -157,6 +157,38 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
     setRepayableInfoVisible(true);
   };
 
+  const buildRepaymentSchedule = (totalRepayment, months, salaryDay, startDate = new Date()) => {
+    if (!salaryDay || !months) return [];
+    const firstPayment = getNextSalaryDate(salaryDay, startDate);
+    const dates = Array.from({ length: months }, (_, idx) => {
+      const date = new Date(firstPayment);
+      date.setMonth(date.getMonth() + idx);
+      return date;
+    });
+
+    const segments = dates.map((date, idx) => {
+      const prev = idx === 0 ? startDate : dates[idx - 1];
+      const days = Math.max(1, Math.ceil((date - prev) / (1000 * 60 * 60 * 24)));
+      return { date, days };
+    });
+
+    const totalDays = segments.reduce((sum, seg) => sum + seg.days, 0) || 1;
+    let remaining = totalRepayment;
+
+    return segments.map((seg, idx) => {
+      const isLast = idx === segments.length - 1;
+      const amount = isLast
+        ? remaining
+        : Math.round((totalRepayment * (seg.days / totalDays)) * 100) / 100;
+      remaining = Math.round((remaining - amount) * 100) / 100;
+      return {
+        date: formatDate(seg.date),
+        days: seg.days,
+        amount
+      };
+    });
+  };
+
   const handleSubmit = async () => {
     if (currentStep === "amount") {
       const amount = Number(loanAmount);
@@ -174,22 +206,27 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
     if (currentStep === "months") {
       const months = Number(loanMonths);
       if (!months || months <= 0 || months > MAX_MONTHS) return;
+      if (!salaryPaymentDay) return;
       updateRepayable(Number(loanAmount), months);
-      animateDisclaimer(`Monthly repayment: ${formatZar(calculateTotalRepayment(Number(loanAmount), months) / months)} (set salary day below)`);
+      const totalRepayment = calculateTotalRepayment(Number(loanAmount), months);
+      const schedule = buildRepaymentSchedule(totalRepayment, months, salaryPaymentDay, new Date());
+      setRepaymentSchedule(schedule);
+      setFirstRepaymentDate(schedule[0]?.date || "");
+      const monthlyLabel = schedule[0]?.amount ? formatZar(schedule[0].amount) : formatZar(totalRepayment / months);
+      animateDisclaimer(`Next repayment: ${monthlyLabel} on the ${salaryPaymentDay}${getOrdinalSuffix(salaryPaymentDay)}`);
       setCurrentStep("date");
       return;
     }
 
     if (currentStep === "date") {
-      if (!repaymentDate) return;
-      const salaryDay = Number(salaryDate);
-      if (!salaryDay || salaryDay < 1 || salaryDay > 31) return;
+      if (!salaryPaymentDay) return;
+      if (!repaymentSchedule.length) return;
 
       const totalRepayment = calculateTotalRepayment(Number(loanAmount), Number(loanMonths));
       const monthly = totalRepayment / Number(loanMonths);
-      const firstPaymentDate = getNextSalaryDate(salaryDay, new Date());
-      const dateStr = firstPaymentDate ? formatDate(firstPaymentDate) : repaymentDate;
-      setRepaymentDate(dateStr);
+      const firstPaymentDate = getNextSalaryDate(salaryPaymentDay, new Date());
+      const dateStr = firstPaymentDate ? formatDate(firstPaymentDate) : firstRepaymentDate;
+      setFirstRepaymentDate(dateStr);
       setMonthlyRepayment(monthly);
 
       if (loanRecord?.id) {
@@ -200,7 +237,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           first_repayment_date: dateStr,
           number_of_months: Number(loanMonths),
           interest_rate: effectiveRate,
-          salary_date: salaryDay,
+          salary_date: salaryPaymentDay,
           monthly_repayment: monthly,
           step_number: 4
         });
@@ -215,8 +252,8 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
   const isDisabled = currentStep === "amount"
     ? !loanAmount
     : currentStep === "months"
-      ? !loanMonths
-      : !repaymentDate || !salaryDate;
+      ? !loanMonths || !salaryPaymentDay
+      : !repaymentSchedule.length || !salaryPaymentDay;
 
   return (
     <MintGradientLayout
@@ -277,14 +314,11 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
                 className="absolute inset-0"
                 style={{ transform: "rotateX(240deg)", backfaceVisibility: "hidden" }}
               >
-                <input
-                  type="date"
-                  min={minDate}
-                  max={maxDateString}
-                  value={repaymentDate}
-                  onChange={(event) => setRepaymentDate(event.target.value)}
-                  className="h-[80px] w-full rounded-full border border-slate-200 bg-white/90 px-6 text-xl font-semibold text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.08)] outline-none transition focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20"
-                />
+                <div className="h-[80px] w-full rounded-full border border-slate-200 bg-white/90 px-6 text-lg font-semibold text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.08)] flex items-center justify-center">
+                  {salaryPaymentDay
+                    ? `Salary day: ${salaryPaymentDay}${getOrdinalSuffix(salaryPaymentDay)}`
+                    : "Salary day not found"}
+                </div>
               </div>
             </div>
           </div>
@@ -303,6 +337,23 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
             <strong className="text-purple-600">{formatZar(repayableAmount)}</strong>
           </div>
 
+          {repaymentSchedule.length > 0 && (
+            <div className="mt-4 rounded-2xl border border-slate-100 bg-white px-5 py-4 text-sm text-slate-700">
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Repayment schedule</p>
+              <div className="mt-3 space-y-2">
+                {repaymentSchedule.map((entry, idx) => (
+                  <div key={entry.date} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800">{entry.date}</p>
+                      <p className="text-xs text-slate-500">{entry.days} days</p>
+                    </div>
+                    <span className="font-semibold text-slate-900">{formatZar(entry.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleSubmit}
@@ -320,17 +371,13 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
             <label className="text-xs font-semibold uppercase tracking-widest text-slate-400">
               Salary payment day
             </label>
-            <input
-              type="number"
-              min="1"
-              max="31"
-              placeholder="25"
-              value={salaryDate}
-              onChange={(event) => setSalaryDate(event.target.value)}
-              className="mt-2 w-full rounded-full border border-slate-200 bg-white px-4 py-3 text-base font-semibold text-slate-800 outline-none focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20"
-            />
+            <p className="mt-2 text-base font-semibold text-slate-800">
+              {salaryPaymentDay
+                ? `${salaryPaymentDay}${getOrdinalSuffix(salaryPaymentDay)} (from bank)`
+                : "Not available from bank snapshot"}
+            </p>
             <p className="mt-2 text-xs text-slate-500">
-              Enter the day of the month you receive your salary (e.g., 25{getOrdinalSuffix(25)}).
+              We use your bank salary date to schedule repayments automatically.
             </p>
           </div>
         </div>
