@@ -3,12 +3,14 @@ import { Bell } from "lucide-react";
 import CreditMetricCard from "../components/credit/CreditMetricCard.jsx";
 import CreditActionGrid from "../components/credit/CreditActionGrid.jsx";
 import CreditScorePage from "./CreditScorePage.jsx";
+import { supabase } from "../lib/supabase.js";
+import { formatZar } from "../lib/formatCurrency";
 import { useProfile } from "../lib/useProfile";
 import CreditSkeleton from "../components/CreditSkeleton";
 
-const creditOverview = {
+const defaultCreditOverview = {
   availableCredit: "R25,000",
-  score: 732,
+  score: 0,
   updatedAt: "Updated today",
   loanBalance: "R8,450",
   nextPaymentDate: "May 30, 2024",
@@ -20,6 +22,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   const [view, setView] = useState(() =>
     window.location.pathname === "/credit/score" ? "score" : "overview"
   );
+  const [creditOverview, setCreditOverview] = useState(defaultCreditOverview);
   const { profile, loading } = useProfile();
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -36,6 +39,61 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
+    const loadScoreAndLoan = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
+
+      const { data: scoreData } = await supabase
+        .from("loan_engine_score")
+        .select("experian_score,run_at")
+        .eq("user_id", userId)
+        .order("run_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { data: loanData } = await supabase
+        .from("loan_application")
+        .select("principal_amount,amount_repayable,monthly_repayable,first_repayment_date,status")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setCreditOverview((prev) => {
+        const next = { ...prev };
+        if (scoreData?.experian_score) {
+          next.score = scoreData.experian_score;
+          next.updatedAt = "Updated today";
+        }
+
+        if (loanData?.principal_amount || loanData?.amount_repayable) {
+          next.loanBalance = formatZar(Number(loanData.principal_amount) || 0);
+          next.nextPaymentDate = loanData.first_repayment_date
+            ? new Date(loanData.first_repayment_date).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+              })
+            : "—";
+          next.minDue = formatZar(Number(loanData.monthly_repayable) || 0);
+          next.utilisationPercent = prev.utilisationPercent;
+          next.loanStatus = loanData.status || "in_progress";
+          next.amountRepayable = formatZar(Number(loanData.amount_repayable) || 0);
+        } else {
+          next.loanStatus = null;
+          next.amountRepayable = null;
+        }
+
+        return next;
+      });
+    };
+
+    loadScoreAndLoan();
   }, []);
 
   const navigate = (path) => {
@@ -110,35 +168,48 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
         </CreditMetricCard>
 
         <CreditMetricCard>
-          <p className="text-sm font-semibold text-slate-700">Active loan / Utilisation</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-slate-700">Active loan / Utilisation</p>
+            {creditOverview.loanStatus && (
+              <span className={`rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-widest ${
+                creditOverview.loanStatus.toLowerCase() === "submitted"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-emerald-100 text-emerald-700"
+              }`}>
+                {creditOverview.loanStatus.toLowerCase() === "submitted" ? "In review" : creditOverview.loanStatus}
+              </span>
+            )}
+          </div>
+
           <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
             <div>
-              <p className="text-xs text-slate-400">Loan balance</p>
+              <p className="text-xs text-slate-400">Principal amount</p>
               <p className="mt-1 font-semibold text-slate-800">{creditOverview.loanBalance}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Next payment date</p>
+              <p className="text-xs text-slate-400">First repayment date</p>
               <p className="mt-1 font-semibold text-slate-800">{creditOverview.nextPaymentDate}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Minimum due</p>
+              <p className="text-xs text-slate-400">Monthly repayable</p>
               <p className="mt-1 font-semibold text-slate-800">{creditOverview.minDue}</p>
             </div>
             <div>
-              <p className="text-xs text-slate-400">Utilisation</p>
-              <p className="mt-1 font-semibold text-slate-800">
-                {creditOverview.utilisationPercent}%
-              </p>
+              <p className="text-xs text-slate-400">Amount repayable</p>
+              <p className="mt-1 font-semibold text-slate-800">{creditOverview.amountRepayable || "—"}</p>
             </div>
           </div>
-          <div className="mt-5">
-            <div className="h-2 w-full rounded-full bg-slate-100">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-emerald-300"
-                style={{ width: utilisationWidth }}
-              />
+
+          {!creditOverview.loanStatus && (
+            <div className="mt-5">
+              <div className="h-2 w-full rounded-full bg-slate-100">
+                <div
+                  className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-emerald-300"
+                  style={{ width: utilisationWidth }}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </CreditMetricCard>
 
         <CreditMetricCard>
