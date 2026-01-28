@@ -58,6 +58,7 @@ export function useCreditCheck() {
   const [loanRecord, setLoanRecord] = useState(null);
   const [profile, setProfile] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
+  const [onboardingEmployerName, setOnboardingEmployerName] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [intakeError, setIntakeError] = useState("");
   const [locked, setLocked] = useState(false);
@@ -143,6 +144,14 @@ export function useCreditCheck() {
         .limit(1)
         .maybeSingle();
 
+      const { data: onboardingData } = await supabase
+        .from("user_onboarding")
+        .select("employer_name")
+        .eq("user_id", session.user.id)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       const { count: loanCount } = await supabase
         .from("loan_application")
         .select("id", { count: "exact", head: true })
@@ -152,6 +161,7 @@ export function useCreditCheck() {
 
       setProfile(profileData || null);
       setSnapshot(snapshotData || null);
+      setOnboardingEmployerName(onboardingData?.employer_name || null);
 
       setForm((prev) => ({
         ...prev,
@@ -167,6 +177,7 @@ export function useCreditCheck() {
         annualExpenses: snapshotData?.avg_monthly_expenses
           ? String(snapshotData.avg_monthly_expenses * 12)
           : prev.annualExpenses,
+        employerName: onboardingData?.employer_name || prev.employerName,
         isNewBorrower: (prev.isNewBorrower || "")
           ? prev.isNewBorrower
           : loanCount === 1
@@ -297,6 +308,7 @@ export function useCreditCheck() {
     mockMode,
     employerCsv,
     warnings,
+    onboardingEmployerName,
     proceedToStep3,
     isUpdatingLoan
   };
