@@ -139,10 +139,21 @@ export async function initLoanStep(currentStepNumber, { updateStep = true, allow
   const loanId = localStorage.getItem(LOAN_KEY);
   let loan = await fetchLoanById(loanId);
 
-  if (!loan) {
-    const user = await getSessionUser();
-    const latest = await fetchLatestLoanForUser(user?.id);
-    if (latest?.id) {
+  if (loan && isStaleLoan(loan)) {
+    await deleteLoanById(loan.id);
+    localStorage.removeItem(LOAN_KEY);
+    loan = null;
+  }
+
+  if (loan && loan.status !== "in_progress") {
+    localStorage.removeItem(LOAN_KEY);
+    loan = null;
+  }
+
+  const user = await getSessionUser();
+  const latest = await fetchLatestLoanForUser(user?.id);
+  if (latest?.id) {
+    if (!loan || loan.id !== latest.id) {
       localStorage.setItem(LOAN_KEY, latest.id);
       loan = latest;
     }
