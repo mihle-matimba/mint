@@ -207,7 +207,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
 
 // Stage 2: Enrichment (Review Details)
-const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked }) => {
+const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked, contractLocked }) => {
   const [formData, setFormData] = useState({
       employerName: defaultValues?.employerName || "",
       employmentSector: defaultValues?.employmentSector || "",
@@ -275,17 +275,25 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
                   </label>
                   <label className="block">
                      <span className="text-xs font-bold text-slate-400 uppercase">Contract</span>
-                     <select 
-                        value={formData.contractType}
-                        onChange={(e) => handleChange('contractType', e.target.value)}
-                        className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
-                     >
-                         <option value="">Select...</option>
-                         <option value="PERMANENT">Permanent</option>
-                         <option value="FIXED_TERM_12_PLUS">Fixed Term ({'>'}12m)</option>
-                         <option value="FIXED_TERM_LT_12">Fixed Term ({'<'}12m)</option>
-                         <option value="SELF_EMPLOYED_12_PLUS">Self Employed</option>
-                     </select>
+                     {contractLocked ? (
+                        <div className="mt-1 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                           {formData.contractType
+                              ? formData.contractType.replace(/_/g, " ")
+                              : "--"}
+                        </div>
+                     ) : (
+                        <select 
+                           value={formData.contractType}
+                           onChange={(e) => handleChange('contractType', e.target.value)}
+                           className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
+                        >
+                            <option value="">Select...</option>
+                            <option value="PERMANENT">Permanent</option>
+                            <option value="FIXED_TERM_12_PLUS">Fixed Term ({'>'}12m)</option>
+                            <option value="FIXED_TERM_LT_12">Fixed Term ({'<'}12m)</option>
+                            <option value="SELF_EMPLOYED_12_PLUS">Self Employed</option>
+                        </select>
+                     )}
                   </label>
                </div>
             </div>
@@ -509,9 +517,10 @@ const CreditApplyWizard = ({ onBack }) => {
     employerCsv,
     lockInputs,
     snapshot,
-    proceedToStep3, // Import this to save progress to DB
+      proceedToStep3, // Import this to save progress to DB
       loadingProfile,
-      onboardingEmployerName
+      onboardingEmployerName,
+      contractTypeLocked
   } = useCreditCheck();
 
   const isCalculating = engineStatus === "Running";
@@ -552,7 +561,7 @@ const CreditApplyWizard = ({ onBack }) => {
      if(finalData.employmentSector) setField("employmentSector", finalData.employmentSector);
      if(finalData.contractType) setField("contractType", finalData.contractType);
 
-     if (!onboardingEmployerName && finalData.employerName) {
+     if ((!onboardingEmployerName && finalData.employerName) || (!contractTypeLocked && finalData.contractType)) {
         try {
            const { data: { session } } = await supabase.auth.getSession();
            const userId = session?.user?.id;
@@ -562,7 +571,8 @@ const CreditApplyWizard = ({ onBack }) => {
                 .upsert({
                    user_id: userId,
                    employment_status: "employed",
-                   employer_name: finalData.employerName
+                   employer_name: finalData.employerName,
+                   employment_type: finalData.contractType
                 }, { onConflict: "user_id" });
            }
         } catch (error) {
@@ -668,6 +678,7 @@ const CreditApplyWizard = ({ onBack }) => {
                  employerOptions={employerOptions} 
                  onSubmit={handleEnrichmentSubmit} 
                  employerLocked={Boolean(onboardingEmployerName)}
+                 contractLocked={contractTypeLocked}
                />;
       case 3:
          return <ResultStage 
