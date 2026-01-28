@@ -251,6 +251,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
       setFirstRepaymentDate(dateStr);
       setMonthlyRepayment(monthly);
 
+      let didSubmit = false;
       if (loanRecord?.id) {
         const effectiveRate = (totalRepayment - Number(loanAmount)) / Number(loanAmount);
         const updated = await updateLoan(loanRecord.id, {
@@ -260,16 +261,15 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           number_of_months: Number(loanMonths),
           interest_rate: effectiveRate,
           salary_date: salaryPaymentDay,
-          monthly_repayment: monthly,
           repayment_schedule: repaymentSchedule,
           step_number: 4
         });
-        setSubmitStatus(updated ? "success" : "error");
-      } else {
-        setSubmitStatus("error");
+        didSubmit = Boolean(updated);
       }
 
-      if (onComplete && submitStatus !== "error") {
+      setSubmitStatus(didSubmit ? "success" : "error");
+
+      if (didSubmit && onComplete) {
         onComplete();
       }
     }
