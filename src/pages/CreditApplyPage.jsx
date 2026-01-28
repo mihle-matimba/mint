@@ -207,21 +207,13 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
 
 // Stage 2: Enrichment (Review Details)
-const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions }) => {
-  const [showForm, setShowForm] = useState(false);
+const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked }) => {
   const [formData, setFormData] = useState({
       employerName: defaultValues?.employerName || "",
       employmentSector: defaultValues?.employmentSector || "",
       contractType: defaultValues?.contractType || "",
-      grossIncome: defaultValues?.grossIncome || "",
       ...defaultValues
   });
-
-  const isMissingData = !formData.employerName || !formData.grossIncome;
-
-  useEffect(() => {
-     if (isMissingData) setShowForm(true);
-  }, [isMissingData]);
 
   useEffect(() => {
     // Keep internal state in sync if defaultValues updates from parent
@@ -236,79 +228,68 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions }) => {
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <MintCard title="Employment Details" className="relative overflow-hidden">
-         {!showForm ? (
-            <div className="flex items-center justify-between">
-               <div className="space-y-1">
-                  <p className="text-sm text-slate-500">Employment verified via info.</p>
-                  <p className="text-lg font-bold text-slate-900">{formData.employerName || "Unknown Employer"}</p>
-                  <p className="text-xs font-medium bg-emerald-50 text-emerald-700 inline-block px-2 py-1 rounded-md mt-2">
-                     Derived from bank statement
-                  </p>
-               </div>
+         <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+            <p className="text-slate-500 text-xs">Please confirm these details are correct.</p>
+            
+            <div className="space-y-3">
+               <label className="block">
+                 <span className="text-xs font-bold text-slate-400 uppercase">Employer Name</span>
+                 {employerLocked ? (
+                   <div className="mt-1 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                     {formData.employerName || "Unknown Employer"}
+                   </div>
+                 ) : (
+                   <>
+                     <input 
+                       list="employer-list"
+                       className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none transition-colors"
+                       value={formData.employerName}
+                       onChange={(e) => handleChange("employerName", e.target.value)}
+                       placeholder="e.g. Acme Corp" 
+                     />
+                     {employerOptions?.length > 0 && (
+                       <datalist id="employer-list">
+                         {employerOptions.map((name) => (
+                            <option key={name} value={name} />
+                         ))}
+                       </datalist>
+                     )}
+                   </>
+                 )}
+               </label>
                
-               <button onClick={() => setShowForm(true)} className="p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-full transition-all" title="Review Details">
-                  <UserPen size={20} />
-               </button>
-            </div>
-         ) : (
-            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-               <div className="flex justify-between items-center mb-2">
-                 <p className="text-slate-500 text-xs">Please confirm these details are correct.</p>
-                 <button onClick={() => setShowForm(false)} className="text-[10px] font-bold uppercase text-slate-400 hover:text-slate-900">Cancel Review</button>
-               </div>
-               
-               <div className="space-y-3">
+               <div className="grid grid-cols-2 gap-4">
                   <label className="block">
-                    <span className="text-xs font-bold text-slate-400 uppercase">Employer Name</span>
-                    <input 
-                      list="employer-list"
-                      className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none transition-colors"
-                      value={formData.employerName}
-                      onChange={(e) => handleChange("employerName", e.target.value)}
-                      placeholder="e.g. Acme Corp" 
-                    />
-                    {employerOptions?.length > 0 && (
-                      <datalist id="employer-list">
-                        {employerOptions.map((name) => (
-                           <option key={name} value={name} />
-                        ))}
-                      </datalist>
-                    )}
+                     <span className="text-xs font-bold text-slate-400 uppercase">Sector</span>
+                     <select 
+                        value={formData.employmentSector}
+                        onChange={(e) => handleChange('employmentSector', e.target.value)}
+                        className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
+                     >
+                         <option value="">Select...</option>
+                         <option value="government">Government</option>
+                         <option value="private">Private</option>
+                         <option value="listed">Listed Company</option>
+                         <option value="other">Other</option>
+                     </select>
                   </label>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                     <label className="block">
-                        <span className="text-xs font-bold text-slate-400 uppercase">Sector</span>
-                        <select 
-                           value={formData.employmentSector}
-                           onChange={(e) => handleChange('employmentSector', e.target.value)}
-                           className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
-                        >
-                            <option value="">Select...</option>
-                            <option value="government">Government</option>
-                            <option value="private">Private</option>
-                            <option value="listed">Listed Company</option>
-                            <option value="other">Other</option>
-                        </select>
-                     </label>
-                     <label className="block">
-                        <span className="text-xs font-bold text-slate-400 uppercase">Contract</span>
-                        <select 
-                           value={formData.contractType}
-                           onChange={(e) => handleChange('contractType', e.target.value)}
-                           className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
-                        >
-                            <option value="">Select...</option>
-                            <option value="PERMANENT">Permanent</option>
-                            <option value="FIXED_TERM_12_PLUS">Fixed Term ({'>'}12m)</option>
-                            <option value="FIXED_TERM_LT_12">Fixed Term ({'<'}12m)</option>
-                            <option value="SELF_EMPLOYED_12_PLUS">Self Employed</option>
-                        </select>
-                     </label>
-                  </div>
+                  <label className="block">
+                     <span className="text-xs font-bold text-slate-400 uppercase">Contract</span>
+                     <select 
+                        value={formData.contractType}
+                        onChange={(e) => handleChange('contractType', e.target.value)}
+                        className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
+                     >
+                         <option value="">Select...</option>
+                         <option value="PERMANENT">Permanent</option>
+                         <option value="FIXED_TERM_12_PLUS">Fixed Term ({'>'}12m)</option>
+                         <option value="FIXED_TERM_LT_12">Fixed Term ({'<'}12m)</option>
+                         <option value="SELF_EMPLOYED_12_PLUS">Self Employed</option>
+                     </select>
+                  </label>
                </div>
             </div>
-         )}
+         </div>
       </MintCard>
 
       <button 
@@ -529,7 +510,8 @@ const CreditApplyWizard = ({ onBack }) => {
     lockInputs,
     snapshot,
     proceedToStep3, // Import this to save progress to DB
-    loadingProfile
+      loadingProfile,
+      onboardingEmployerName
   } = useCreditCheck();
 
   const isCalculating = engineStatus === "Running";
@@ -569,7 +551,24 @@ const CreditApplyWizard = ({ onBack }) => {
      if(finalData.employerName) setField("employerName", finalData.employerName);
      if(finalData.employmentSector) setField("employmentSector", finalData.employmentSector);
      if(finalData.contractType) setField("contractType", finalData.contractType);
-     if(finalData.grossIncome) setField("annualIncome", String(finalData.grossIncome * 12));
+
+     if (!onboardingEmployerName && finalData.employerName) {
+        try {
+           const { data: { session } } = await supabase.auth.getSession();
+           const userId = session?.user?.id;
+           if (userId) {
+              await supabase
+                .from("user_onboarding")
+                .upsert({
+                   user_id: userId,
+                   employment_status: "employed",
+                   employer_name: finalData.employerName
+                }, { onConflict: "user_id" });
+           }
+        } catch (error) {
+           console.warn("Failed to save employer name:", error?.message || error);
+        }
+     }
      
      // 2. Lock & Run
      lockInputs(); 
@@ -585,8 +584,7 @@ const CreditApplyWizard = ({ onBack }) => {
   const enrichmentDefaults = {
     employerName: checkForm.employerName,
     employmentSector: checkForm.employmentSector,
-    contractType: checkForm.contractType,
-    grossIncome: checkForm.annualIncome ? Number(checkForm.annualIncome) / 12 : "",
+      contractType: checkForm.contractType,
   };
   
   const employerOptions = employerCsv?.map(row => row.split(";")[0]).filter(Boolean).slice(0, 50) || [];
@@ -664,12 +662,13 @@ const CreditApplyWizard = ({ onBack }) => {
             );
         case 1:
             return <ConnectionStage onComplete={handleConnectionComplete} onError={() => {}} />;
-        case 2:
-            return <EnrichmentStage 
-                      defaultValues={enrichmentDefaults} 
-                      employerOptions={employerOptions} 
-                      onSubmit={handleEnrichmentSubmit} 
-                   />;
+      case 2:
+         return <EnrichmentStage 
+                 defaultValues={enrichmentDefaults} 
+                 employerOptions={employerOptions} 
+                 onSubmit={handleEnrichmentSubmit} 
+                 employerLocked={Boolean(onboardingEmployerName)}
+               />;
       case 3:
          return <ResultStage 
                  score={score} 
