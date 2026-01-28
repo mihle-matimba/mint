@@ -37,18 +37,30 @@ const calculateTotalRepayment = (principal, months) => {
   return principal + totalFees;
 };
 
-const getNextSalaryDate = (salaryDay, fromDate = new Date()) => {
+const MIN_REPAYMENT_DAYS = 10;
+
+const getSalaryDateForMonth = (year, monthIndex, salaryDay) => {
+  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+  const clampedDay = Math.min(salaryDay, lastDay);
+  return new Date(year, monthIndex, clampedDay);
+};
+
+const getNextSalaryDate = (salaryDay, fromDate = new Date(), minDays = MIN_REPAYMENT_DAYS) => {
   const current = new Date(fromDate);
   const currentMonth = current.getMonth();
   const currentYear = current.getFullYear();
 
-  const thisMonthSalary = new Date(currentYear, currentMonth, salaryDay);
-  const daysUntil = Math.ceil((thisMonthSalary - current) / (1000 * 60 * 60 * 24));
-  if (thisMonthSalary > current && daysUntil >= 10) {
-    return thisMonthSalary;
+  let candidate = getSalaryDateForMonth(currentYear, currentMonth, salaryDay);
+  if (candidate <= current) {
+    candidate = getSalaryDateForMonth(currentYear, currentMonth + 1, salaryDay);
   }
 
-  return new Date(currentYear, currentMonth + 1, salaryDay);
+  const daysUntil = Math.ceil((candidate - current) / (1000 * 60 * 60 * 24));
+  if (daysUntil < minDays) {
+    candidate = getSalaryDateForMonth(currentYear, currentMonth + 2, salaryDay);
+  }
+
+  return candidate;
 };
 
 const LoanConfigurationPage = ({ onBack, onComplete }) => {
@@ -102,9 +114,16 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
             .maybeSingle();
 
           if (snapshotData?.salary_payment_date) {
-            const day = new Date(snapshotData.salary_payment_date).getDate();
-            if (Number.isFinite(day)) {
-              setSalaryPaymentDay(day);
+            const raw = snapshotData.salary_payment_date;
+            const numericDay = Number(raw);
+            if (Number.isFinite(numericDay) && numericDay >= 1 && numericDay <= 31) {
+              setSalaryPaymentDay(numericDay);
+            } else {
+              const parsed = new Date(raw);
+              const day = parsed.getDate();
+              if (Number.isFinite(day)) {
+                setSalaryPaymentDay(day);
+              }
             }
           }
 
