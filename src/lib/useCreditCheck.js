@@ -143,6 +143,11 @@ export function useCreditCheck() {
         .limit(1)
         .maybeSingle();
 
+      const { count: loanCount } = await supabase
+        .from("loan_application")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", session.user.id);
+
       if (!active) return;
 
       setProfile(profileData || null);
@@ -161,7 +166,12 @@ export function useCreditCheck() {
           : prev.annualIncome,
         annualExpenses: snapshotData?.avg_monthly_expenses
           ? String(snapshotData.avg_monthly_expenses * 12)
-          : prev.annualExpenses
+          : prev.annualExpenses,
+        isNewBorrower: (prev.isNewBorrower || "")
+          ? prev.isNewBorrower
+          : loanCount === 1
+            ? "yes"
+            : prev.isNewBorrower
       }));
 
       setLoadingProfile(false);

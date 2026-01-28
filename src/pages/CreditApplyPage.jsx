@@ -411,9 +411,78 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
                                  {showAllData ? "Hide details" : "Reveal details"}
                               </button>
                               {showAllData && (
-                                 <pre className="mt-3 whitespace-pre-wrap rounded-lg bg-slate-900 text-slate-100 text-[10px] p-4 max-h-80 overflow-y-auto">
-                                    {safeResult ? JSON.stringify(safeResult, null, 2) : "No data available."}
-                                 </pre>
+                                 <div className="mt-4 space-y-4 text-xs text-slate-700">
+                                    <div className="grid grid-cols-2 gap-3">
+                                       <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                          <p className="text-[10px] uppercase font-bold text-slate-400">Borrower status</p>
+                                          <p className="text-sm font-semibold text-slate-800">
+                                             {engineResult?.raw?.userData?.algolend_is_new_borrower ? "New borrower" : "Existing borrower"}
+                                          </p>
+                                       </div>
+                                       <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                          <p className="text-[10px] uppercase font-bold text-slate-400">Contract type</p>
+                                          <p className="text-sm font-semibold text-slate-800">
+                                             {engineResult?.breakdown?.contractType?.contractType || "--"}
+                                          </p>
+                                       </div>
+                                    </div>
+
+                                    <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Exposure snapshot</p>
+                                       <div className="grid grid-cols-2 gap-3">
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Revolving utilization</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.breakdown?.creditUtilization?.ratioPercent)
+                                                  ? `${engineResult.breakdown.creditUtilization.ratioPercent.toFixed(1)}%`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Total balance</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.creditExposure?.totalBalance)
+                                                  ? `R ${engineResult.creditExposure.totalBalance.toLocaleString()}`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Total limits</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.creditExposure?.totalLimits)
+                                                  ? `R ${engineResult.creditExposure.totalLimits.toLocaleString()}`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                          <div>
+                                             <p className="text-[10px] text-slate-400">Monthly installments</p>
+                                             <p className="font-semibold text-slate-800">
+                                                {Number.isFinite(engineResult?.creditExposure?.totalMonthlyInstallment)
+                                                  ? `R ${engineResult.creditExposure.totalMonthlyInstallment.toLocaleString()}`
+                                                  : "--"}
+                                             </p>
+                                          </div>
+                                       </div>
+                                    </div>
+
+                                    <div className="rounded-lg border border-slate-100 bg-white p-3">
+                                       <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">Score breakdown</p>
+                                       <div className="space-y-2">
+                                          {Object.entries(engineResult?.breakdown || {}).map(([key, value]) => (
+                                             <div key={key} className="flex items-center justify-between">
+                                                <span className="text-slate-500">
+                                                   {key.replace(/([A-Z])/g, " $1").trim()}
+                                                </span>
+                                                <span className="font-semibold text-slate-800">
+                                                   {Number.isFinite(value?.contributionPercent)
+                                                     ? `${(value.contributionPercent * 100).toFixed(1)}%`
+                                                     : "--"}
+                                                </span>
+                                             </div>
+                                          ))}
+                                       </div>
+                                    </div>
+                                 </div>
                               )}
                            </div>
                         </details>

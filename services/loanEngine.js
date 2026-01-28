@@ -361,11 +361,16 @@ function computeIncomeStabilityContribution(overrides = {}) {
     ? overrides.employment_sector_type.toUpperCase()
     : null;
   const employerName = overrides.employment_employer_name || null;
+  const monthsCaptured = Number(overrides.truid_months_captured);
+  const mainSalary = Number(overrides.truid_main_salary);
 
   let valuePercent = 0;
   let stabilityReason = 'Income stability not evaluated';
 
-  if (rawSector === 'GOVERNMENT' && employerName) {
+  if (Number.isFinite(monthsCaptured) && monthsCaptured >= 4 && Number.isFinite(mainSalary) && mainSalary > 0) {
+    valuePercent = 100;
+    stabilityReason = 'TruID snapshot: 4+ months with main salary detected';
+  } else if (rawSector === 'GOVERNMENT' && employerName) {
     valuePercent = 100;
     stabilityReason = 'Government employee · automatic 100%';
   } else {

@@ -139,6 +139,33 @@ export default async function handler(req, res) {
     }
   }
 
+  let truidSnapshot = null;
+  if (supabase && userId && userId !== 'anon-dev') {
+    try {
+      const dbClient = accessToken
+        ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            global: { headers: { Authorization: `Bearer ${accessToken}` } }
+          })
+        : supabase;
+
+      const { data: snapshotData } = await dbClient
+        .from('truid_bank_snapshots')
+        .select('months_captured,main_salary')
+        .eq('user_id', userId)
+        .order('captured_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      truidSnapshot = snapshotData || null;
+      if (snapshotData) {
+        normalizedOverrides.truid_months_captured = snapshotData.months_captured;
+        normalizedOverrides.truid_main_salary = snapshotData.main_salary;
+      }
+    } catch (snapshotError) {
+      console.warn('TruID snapshot lookup failed:', snapshotError?.message || snapshotError);
+    }
+  }
+
   const userPayload = buildUserData(normalizedOverrides);
   userPayload.user_id = overrides?.user_id || userId;
 
