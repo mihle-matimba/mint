@@ -343,7 +343,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAssessment }) => {
+const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAssessment, onContinue }) => {
       const [showAllData, setShowAllData] = useState(false);
       const [loaderValue, setLoaderValue] = useState(0);
 
@@ -587,6 +587,16 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
                               )}
                            </div>
                         </details>
+
+                        {onContinue && (
+                           <button
+                              type="button"
+                              onClick={onContinue}
+                              className="w-full mt-2 py-4 rounded-full bg-slate-900 text-white text-sm font-semibold uppercase tracking-[0.2em] shadow-lg shadow-slate-900/20 hover:-translate-y-0.5 transition-all"
+                           >
+                              Continue to loan configuration
+                           </button>
+                        )}
                      </div>
                   )}
             </MintCard>
@@ -596,7 +606,7 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
 
 // --- ORCHESTRATOR ---
 
-const CreditApplyWizard = ({ onBack }) => {
+const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
   
@@ -789,14 +799,15 @@ const CreditApplyWizard = ({ onBack }) => {
                  contractLocked={contractTypeLocked}
                  sectorLocked={sectorLocked}
                />;
-      case 3:
-         return <ResultStage 
-                 score={score} 
-                 isCalculating={isCalculating} 
-                 breakdown={engineResult?.breakdown} 
-                         engineResult={engineResult}
-                         onRunAssessment={handleRunAssessment}
-               />;
+            case 3:
+          return <ResultStage 
+             score={score} 
+             isCalculating={isCalculating} 
+             breakdown={engineResult?.breakdown} 
+                engineResult={engineResult}
+                onRunAssessment={handleRunAssessment}
+                onContinue={onComplete}
+                />;
         default:
             return null;
      }
