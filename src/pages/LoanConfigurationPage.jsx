@@ -96,9 +96,6 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
         if (record.first_repayment_date) {
           setFirstRepaymentDate(record.first_repayment_date);
         }
-        if (record.salary_date) {
-          setSalaryPaymentDay(Number(record.salary_date));
-        }
       }
 
       if (supabase) {
@@ -125,6 +122,8 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
                 setSalaryPaymentDay(day);
               }
             }
+          } else if (record?.salary_date) {
+            setSalaryPaymentDay(Number(record.salary_date));
           }
 
           const netIncome = Number(snapshotData?.net_monthly_income)
@@ -232,7 +231,8 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
       setRepaymentSchedule(schedule);
       setFirstRepaymentDate(schedule[0]?.date || "");
       const monthlyLabel = schedule[0]?.amount ? formatZar(schedule[0].amount) : formatZar(totalRepayment / months);
-      animateDisclaimer(`Next repayment: ${monthlyLabel} on the ${salaryPaymentDay}${getOrdinalSuffix(salaryPaymentDay)}`);
+      const firstLabel = schedule[0]?.date ? schedule[0].date : "next salary day";
+      animateDisclaimer(`Next repayment: ${monthlyLabel} on ${firstLabel}`);
       setCurrentStep("date");
       return;
     }
@@ -258,6 +258,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           interest_rate: effectiveRate,
           salary_date: salaryPaymentDay,
           monthly_repayment: monthly,
+          repayment_schedule: repaymentSchedule,
           step_number: 4
         });
       }
