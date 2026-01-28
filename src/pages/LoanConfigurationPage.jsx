@@ -338,10 +338,12 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           </div>
 
           {repaymentSchedule.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-100 bg-white px-5 py-4 text-sm text-slate-700">
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Repayment schedule</p>
+            <details className="mt-4 rounded-2xl border border-slate-100 bg-white px-5 py-4 text-sm text-slate-700">
+              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-widest text-slate-400">
+                Repayment schedule
+              </summary>
               <div className="mt-3 space-y-2">
-                {repaymentSchedule.map((entry, idx) => (
+                {repaymentSchedule.map((entry) => (
                   <div key={entry.date} className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-semibold text-slate-800">{entry.date}</p>
@@ -351,7 +353,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
                   </div>
                 ))}
               </div>
-            </div>
+            </details>
           )}
 
           <button
