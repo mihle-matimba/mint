@@ -207,11 +207,12 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
 
 // Stage 2: Enrichment (Review Details)
-const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked, contractLocked, sectorLocked }) => {
+const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked, contractLocked, sectorLocked, yearsLocked }) => {
   const [formData, setFormData] = useState({
       employerName: defaultValues?.employerName || "",
       employmentSector: defaultValues?.employmentSector || "",
       contractType: defaultValues?.contractType || "",
+         yearsCurrentEmployer: defaultValues?.yearsCurrentEmployer || "",
       ...defaultValues
   });
 
@@ -240,7 +241,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
   const handleChange = (f, v) => setFormData(prev => ({...prev, [f]: v}));
    const canContinue = Boolean(
-      formData.employerName && formData.employmentSector && formData.contractType
+      formData.employerName && formData.employmentSector && formData.contractType && formData.yearsCurrentEmployer
    );
 
   return (
@@ -326,6 +327,28 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
                      )}
                   </label>
                </div>
+
+               <label className="block">
+                  <span className="text-xs font-bold text-slate-400 uppercase">Years at current employer</span>
+                  {yearsLocked ? (
+                     <div className="mt-1 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                        {formData.yearsCurrentEmployer || "--"}
+                     </div>
+                  ) : (
+                     <select
+                        value={formData.yearsCurrentEmployer}
+                        onChange={(e) => handleChange("yearsCurrentEmployer", e.target.value)}
+                        className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
+                     >
+                        <option value="">Select...</option>
+                        <option value="<1">Less than 1</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4+">4+</option>
+                     </select>
+                  )}
+               </label>
             </div>
          </div>
       </MintCard>
@@ -624,7 +647,9 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
       loadingProfile,
       onboardingEmployerName,
       contractTypeLocked,
-      sectorLocked
+      sectorLocked,
+      onboardingYearsAtEmployer,
+      yearsAtEmployerLocked
   } = useCreditCheck();
 
   const isCalculating = engineStatus === "Running";
@@ -672,8 +697,13 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
      if(finalData.employerName) setField("employerName", finalData.employerName);
      if(finalData.employmentSector) setField("employmentSector", finalData.employmentSector);
      if(finalData.contractType) setField("contractType", finalData.contractType);
+     if(finalData.yearsCurrentEmployer) setField("yearsCurrentEmployer", finalData.yearsCurrentEmployer);
 
-     if ((!onboardingEmployerName && finalData.employerName) || (!contractTypeLocked && finalData.contractType) || (!sectorLocked && finalData.employmentSector)) {
+     const shouldSaveOnboarding = (!onboardingEmployerName && finalData.employerName)
+        || (!contractTypeLocked && finalData.contractType)
+        || (!sectorLocked && finalData.employmentSector);
+
+     if (shouldSaveOnboarding) {
         try {
            const { data: { session } } = await supabase.auth.getSession();
            const userId = session?.user?.id;
@@ -690,6 +720,36 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
            }
         } catch (error) {
            console.warn("Failed to save employer name:", error?.message || error);
+        }
+     }
+
+     if (!yearsAtEmployerLocked && finalData.yearsCurrentEmployer) {
+        try {
+           const { data: { session } } = await supabase.auth.getSession();
+           const userId = session?.user?.id;
+           if (userId) {
+              const yearsValue = finalData.yearsCurrentEmployer === "<1"
+                ? 0.5
+                : finalData.yearsCurrentEmployer === "4+"
+                  ? 4
+                  : Number(finalData.yearsCurrentEmployer);
+
+              const { data: existingScore } = await supabase
+                .from("loan_engine_score")
+                .select("id")
+                .eq("user_id", userId)
+                .limit(1)
+                .maybeSingle();
+
+              if (existingScore?.id) {
+                await supabase
+                  .from("loan_engine_score")
+                  .update({ years_current_employer: yearsValue })
+                  .eq("id", existingScore.id);
+              }
+           }
+        } catch (error) {
+           console.warn("Failed to save years at employer:", error?.message || error);
         }
      }
      
@@ -713,6 +773,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
     employerName: checkForm.employerName,
     employmentSector: checkForm.employmentSector,
       contractType: checkForm.contractType,
+      yearsCurrentEmployer: onboardingYearsAtEmployer || checkForm.yearsCurrentEmployer
   };
   
   const employerOptions = employerCsv?.map(row => row.split(";")[0]).filter(Boolean).slice(0, 50) || [];
@@ -790,15 +851,16 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
             );
         case 1:
             return <ConnectionStage onComplete={handleConnectionComplete} onError={() => {}} />;
-      case 2:
-         return <EnrichmentStage 
-                 defaultValues={enrichmentDefaults} 
-                 employerOptions={employerOptions} 
-                 onSubmit={handleEnrichmentSubmit} 
-                 employerLocked={Boolean(onboardingEmployerName)}
-                 contractLocked={contractTypeLocked}
-                 sectorLocked={sectorLocked}
-               />;
+         case 2:
+             return <EnrichmentStage 
+                         defaultValues={enrichmentDefaults} 
+                         employerOptions={employerOptions} 
+                         onSubmit={handleEnrichmentSubmit} 
+                         employerLocked={Boolean(onboardingEmployerName)}
+                         contractLocked={contractTypeLocked}
+                         sectorLocked={sectorLocked}
+                         yearsLocked={yearsAtEmployerLocked}
+                      />;
             case 3:
           return <ResultStage 
              score={score} 

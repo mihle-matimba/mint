@@ -57,7 +57,27 @@ const normalizeSectorValue = (value) => {
   return null;
 };
 
+const normalizeYearsAtEmployerValue = (value) => {
+  if (value === null || value === undefined || value === "") return null;
+  const raw = String(value).trim().toLowerCase();
+  if (raw === "<1" || raw === "less than 1" || raw === "lt1") return "<1";
+  if (raw === "4+" || raw === "4 plus" || raw === "4plus" || raw === "4+") return "4+";
+  const numeric = Number(raw);
+  if (!Number.isFinite(numeric)) return null;
+  if (numeric >= 4) return "4+";
+  if (numeric > 0 && numeric < 1) return "<1";
+  if (numeric === 1 || numeric === 2 || numeric === 3) return String(numeric);
+  return null;
+};
+
 const normalizeNumber = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const parseYearsAtEmployerNumber = (value) => {
+  if (value === "<1") return 0.5;
+  if (value === "4+") return 4;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
 };
@@ -78,6 +98,7 @@ export function useCreditCheck() {
   const [onboardingEmployerName, setOnboardingEmployerName] = useState(null);
   const [onboardingEmploymentType, setOnboardingEmploymentType] = useState(null);
   const [onboardingEmploymentSector, setOnboardingEmploymentSector] = useState(null);
+  const [onboardingYearsAtEmployer, setOnboardingYearsAtEmployer] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [intakeError, setIntakeError] = useState("");
   const [locked, setLocked] = useState(false);
@@ -171,6 +192,13 @@ export function useCreditCheck() {
         .limit(1)
         .maybeSingle();
 
+      const { data: engineData } = await supabase
+        .from("loan_engine_score")
+        .select("years_current_employer")
+        .eq("user_id", session.user.id)
+        .limit(1)
+        .maybeSingle();
+
       const { count: loanCount } = await supabase
         .from("loan_application")
         .select("id", { count: "exact", head: true })
@@ -188,9 +216,13 @@ export function useCreditCheck() {
       const normalizedSector = normalizeSectorValue(onboardingData?.employer_industry);
       const sectorLocked = Boolean(normalizedSector);
 
+      const normalizedYearsAtEmployer = normalizeYearsAtEmployerValue(engineData?.years_current_employer);
+      const yearsLocked = Boolean(normalizedYearsAtEmployer);
+
       setOnboardingEmployerName(onboardingData?.employer_name || null);
       setOnboardingEmploymentType(normalizedEmploymentType || null);
       setOnboardingEmploymentSector(normalizedSector || null);
+      setOnboardingYearsAtEmployer(normalizedYearsAtEmployer || null);
 
       setForm((prev) => ({
         ...prev,
@@ -213,6 +245,9 @@ export function useCreditCheck() {
         employmentSector: sectorLocked
           ? normalizedSector || prev.employmentSector
           : prev.employmentSector,
+        yearsCurrentEmployer: yearsLocked
+          ? normalizedYearsAtEmployer || prev.yearsCurrentEmployer
+          : prev.yearsCurrentEmployer,
         isNewBorrower: (prev.isNewBorrower || "")
           ? prev.isNewBorrower
           : loanCount === 1
@@ -296,8 +331,8 @@ export function useCreditCheck() {
         annual_expenses: annualExpenses,
         gross_monthly_income: annualIncome ? annualIncome / 12 : 0,
         net_monthly_income: annualIncome && annualExpenses ? (annualIncome - annualExpenses) / 12 : 0,
-        years_in_current_job: normalizeNumber(form.yearsCurrentEmployer),
-        months_in_current_job: normalizeNumber(form.yearsCurrentEmployer) * 12,
+        years_in_current_job: parseYearsAtEmployerNumber(form.yearsCurrentEmployer),
+        months_in_current_job: parseYearsAtEmployerNumber(form.yearsCurrentEmployer) * 12,
         contract_type: normalizedContractType,
         employment_sector_type: form.employmentSector,
         employment_employer_name: form.employerName,
@@ -329,6 +364,8 @@ export function useCreditCheck() {
   const contractTypeLocked = Boolean(
     onboardingEmploymentType && CONTRACT_TYPE_VALUES.has(onboardingEmploymentType)
   );
+
+  const yearsAtEmployerLocked = Boolean(onboardingYearsAtEmployer);
   const sectorLocked = Boolean(onboardingEmploymentSector);
 
   return {
@@ -353,6 +390,8 @@ export function useCreditCheck() {
     contractTypeLocked,
     onboardingEmploymentSector,
     sectorLocked,
+    onboardingYearsAtEmployer,
+    yearsAtEmployerLocked,
     proceedToStep3,
     isUpdatingLoan
   };
