@@ -651,6 +651,8 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
    const [checkedExistingScore, setCheckedExistingScore] = useState(false);
+   const [loanApplications, setLoanApplications] = useState([]);
+   const [loadingLoans, setLoadingLoans] = useState(true);
   
   // Real Hook Integration
   const { 
@@ -673,6 +675,12 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
 
   const isCalculating = engineStatus === "Running";
   const score = engineResult?.loanEngineScoreNormalized ?? engineResult?.loanEngineScore ?? 0;
+
+   const formatAmount = (value) => {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return "—";
+      return `R ${numeric.toLocaleString("en-ZA", { maximumFractionDigits: 0 })}`;
+   };
 
   // Sync Supabase Snapshot to Form
   useEffect(() => {
@@ -725,6 +733,28 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
 
       checkExistingScore().finally(() => setCheckedExistingScore(true));
    }, [loadingProfile, checkedExistingScore, onComplete]);
+
+   useEffect(() => {
+      const loadLoanApplications = async () => {
+         if (!supabase) return;
+         const { data: sessionData } = await supabase.auth.getSession();
+         const userId = sessionData?.session?.user?.id;
+         if (!userId) return;
+
+         const { data: loanData } = await supabase
+            .from("loan_application")
+            .select("id,principal_amount,amount_repayable,status,created_at,first_repayment_date,number_of_months")
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+            .limit(3);
+
+         if (Array.isArray(loanData)) {
+            setLoanApplications(loanData);
+         }
+      };
+
+      loadLoanApplications().finally(() => setLoadingLoans(false));
+   }, []);
   
   const handleStart = () => setStep(1);
 
@@ -870,6 +900,54 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                         We evaluate your real-time banking behavior, not just your history.
                      </p>
                   </div>
+
+                  {!loadingLoans && loanApplications.length > 0 && (
+                     <div className="space-y-3">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                           Your loan applications
+                        </p>
+                        <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+                           {loanApplications.map((loan) => (
+                              <div key={loan.id} className="min-w-[85%] snap-center">
+                                 <div className="rounded-3xl border border-white/20 bg-white/10 p-5 text-white shadow-xl">
+                                    <div className="flex items-center justify-between">
+                                       <p className="text-xs uppercase tracking-[0.2em] text-white/70">Application</p>
+                                       <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest">
+                                          {loan.status || "in_progress"}
+                                       </span>
+                                    </div>
+                                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                                       <div>
+                                          <p className="text-[10px] uppercase tracking-widest text-white/50">Principal</p>
+                                          <p className="mt-1 text-lg font-semibold">{formatAmount(loan.principal_amount)}</p>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] uppercase tracking-widest text-white/50">Repayable</p>
+                                          <p className="mt-1 text-lg font-semibold">{formatAmount(loan.amount_repayable)}</p>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] uppercase tracking-widest text-white/50">First payment</p>
+                                          <p className="mt-1 text-sm font-semibold">
+                                             {loan.first_repayment_date
+                                                ? new Date(loan.first_repayment_date).toLocaleDateString("en-GB", {
+                                                     day: "2-digit",
+                                                     month: "short",
+                                                     year: "numeric"
+                                                  })
+                                                : "—"}
+                                          </p>
+                                       </div>
+                                       <div>
+                                          <p className="text-[10px] uppercase tracking-widest text-white/50">Months</p>
+                                          <p className="mt-1 text-sm font-semibold">{loan.number_of_months || "—"}</p>
+                                       </div>
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+                     </div>
+                  )}
                   
                   <div className="grid grid-cols-2 gap-4">
                      {[

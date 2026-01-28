@@ -9,7 +9,7 @@ import { useProfile } from "../lib/useProfile";
 import CreditSkeleton from "../components/CreditSkeleton";
 
 const defaultCreditOverview = {
-  availableCredit: "R25,000",
+  availableCredit: "R0",
   score: 0,
   updatedAt: "Updated today",
   loanBalance: "R8,450",
@@ -50,9 +50,17 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
 
       const { data: scoreData } = await supabase
         .from("loan_engine_score")
-        .select("experian_score,run_at")
+        .select("engine_score,run_at")
         .eq("user_id", userId)
         .order("run_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const { data: snapshotData } = await supabase
+        .from("truid_bank_snapshots")
+        .select("net_monthly_income,avg_monthly_income,avg_monthly_expenses")
+        .eq("user_id", userId)
+        .order("captured_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
@@ -66,9 +74,17 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
 
       setCreditOverview((prev) => {
         const next = { ...prev };
-        if (scoreData?.experian_score) {
-          next.score = scoreData.experian_score;
+        if (Number.isFinite(scoreData?.engine_score)) {
+          next.score = scoreData.engine_score;
           next.updatedAt = "Updated today";
+        }
+
+        const netIncome = Number(snapshotData?.net_monthly_income)
+          || (Number(snapshotData?.avg_monthly_income) - Number(snapshotData?.avg_monthly_expenses))
+          || 0;
+        if (Number.isFinite(netIncome) && netIncome > 0) {
+          const maxLimit = Math.max(1000, Math.floor(netIncome * 0.2));
+          next.availableCredit = formatZar(maxLimit);
         }
 
         if (loanData?.principal_amount || loanData?.amount_repayable) {

@@ -9,7 +9,7 @@ import { MintCard } from "../components/credit/ui/MintCard";
 const BASE_FEE = 169;
 const OVER_1K_FEE_RATE = 0.1;
 const MONTHLY_RATE = 0.05;
-const MAX_MONTHS = 24;
+const MAX_MONTHS = 3;
 const DEFAULT_MAX_LOAN = 10000;
 
 const getOrdinalSuffix = (day) => {
@@ -330,7 +330,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
                   type="number"
                   min="1"
                   max={MAX_MONTHS}
-                  placeholder="12"
+                  placeholder="3"
                   value={loanMonths}
                   onChange={(event) => setLoanMonths(event.target.value)}
                   className="h-[80px] w-full rounded-full border border-slate-200 bg-white/90 px-6 text-2xl font-semibold text-slate-800 shadow-[0_10px_30px_rgba(15,23,42,0.08)] outline-none transition focus:border-purple-400 focus:ring-4 focus:ring-purple-500/20"
