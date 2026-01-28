@@ -313,9 +313,28 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions }) => {
 
       <button 
         onClick={() => onSubmit(formData)}
-        className="w-full py-5 bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-[20px] font-bold uppercase tracking-widest text-sm shadow-xl shadow-purple-900/20 active:scale-95 hover:-translate-y-1 transition-all flex items-center justify-center gap-3"
+        className="w-full h-[65px] bg-gradient-to-t from-[#D8D9DB] via-white to-[#FDFDFD] rounded-[32px] border border-[#8F9092] font-semibold text-[17px] text-[#1d1d1f] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative group"
+        style={{
+          boxShadow: '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 0 #CECFD1, 0 0 20px rgba(106, 67, 255, 0.15)',
+          textShadow: '0 1px #fff'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 3px #CECFD1, 0 0 30px rgba(106, 67, 255, 0.3)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 0 #CECFD1, 0 0 20px rgba(106, 67, 255, 0.15)';
+        }}
+        onMouseDown={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 5px 3px #999, inset 0 0 30px #aaa';
+        }}
+        onMouseUp={(e) => {
+          e.currentTarget.style.boxShadow = '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 3px #CECFD1, 0 0 30px rgba(106, 67, 255, 0.3)';
+        }}
       >
-        Run Assessment <ArrowRight size={18} />
+        <span className="absolute inset-[-2px] rounded-[34px] bg-gradient-to-br from-purple-500/30 to-purple-700/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[8px] -z-10"></span>
+        <span className="transition-transform duration-200 group-hover:scale-[0.975] group-active:scale-95 flex items-center gap-2">
+          Run Assessment <ArrowRight size={18} />
+        </span>
       </button>
     </div>
   );
