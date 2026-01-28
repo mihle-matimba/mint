@@ -239,6 +239,9 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
   }, [defaultValues]);
 
   const handleChange = (f, v) => setFormData(prev => ({...prev, [f]: v}));
+   const canContinue = Boolean(
+      formData.employerName && formData.employmentSector && formData.contractType
+   );
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -327,9 +330,10 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
          </div>
       </MintCard>
 
-      <button 
-        onClick={() => onSubmit(formData)}
-        className="w-full h-[65px] bg-gradient-to-t from-[#D8D9DB] via-white to-[#FDFDFD] rounded-[32px] border border-[#8F9092] font-semibold text-[17px] text-[#1d1d1f] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative group"
+         <button 
+            onClick={() => onSubmit(formData)}
+            disabled={!canContinue}
+            className="w-full h-[65px] bg-gradient-to-t from-[#D8D9DB] via-white to-[#FDFDFD] rounded-[32px] border border-[#8F9092] font-semibold text-[17px] text-[#1d1d1f] transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer relative group disabled:opacity-60 disabled:cursor-not-allowed"
         style={{
           boxShadow: '0 4px 3px 1px #FCFCFC, 0 6px 8px #D6D7D9, 0 -4px 4px #CECFD1, 0 -6px 4px #FEFEFE, inset 0 0 3px 0 #CECFD1, 0 0 20px rgba(106, 67, 255, 0.15)',
           textShadow: '0 1px #fff'
@@ -348,8 +352,8 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
         }}
       >
         <span className="absolute inset-[-2px] rounded-[34px] bg-gradient-to-br from-purple-500/30 to-purple-700/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-[8px] -z-10"></span>
-        <span className="transition-transform duration-200 group-hover:scale-[0.975] group-active:scale-95 flex items-center gap-2">
-          Run Assessment <ArrowRight size={18} />
+            <span className="transition-transform duration-200 group-hover:scale-[0.975] group-active:scale-95 flex items-center gap-2">
+               Continue <ArrowRight size={18} />
         </span>
       </button>
     </div>
@@ -358,7 +362,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
+const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAssessment }) => {
       const [showAllData, setShowAllData] = useState(false);
 
       const sanitizeData = (value) => {
@@ -399,6 +403,8 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
             { label: 'Behavior', value: 65 }
       ];
 
+      const hasAssessment = score > 0 || isCalculating;
+
       return (
             <MintCard className="animate-in zoom-in-95 duration-500 min-h-[400px]">
                   <MintRadarChart 
@@ -406,6 +412,17 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
                         categories={categories} 
                         isCalculating={isCalculating}
                   />
+
+                  {!hasAssessment && (
+                     <div className="pt-8 border-t border-slate-50 mt-8">
+                        <button
+                           onClick={onRunAssessment}
+                           className="w-full h-[60px] rounded-full bg-gradient-to-r from-slate-900 to-slate-800 text-white text-sm font-bold uppercase tracking-widest shadow-xl shadow-purple-900/20 hover:-translate-y-1 transition-all"
+                        >
+                           Run Assessment
+                        </button>
+                     </div>
+                  )}
 
                   {!isCalculating && score > 0 && (
                      <div className="pt-8 border-t border-slate-50 mt-8 space-y-4">
@@ -572,6 +589,14 @@ const CreditApplyWizard = ({ onBack }) => {
       }, 900);
       return () => clearTimeout(timer);
    }, [snapshot, step, loadingProfile]);
+
+   useEffect(() => {
+      if (loadingProfile) return;
+      if (step !== 2) return;
+      if (onboardingEmployerName && contractTypeLocked && sectorLocked) {
+         setStep(3);
+      }
+   }, [loadingProfile, step, onboardingEmployerName, contractTypeLocked, sectorLocked]);
   
   const handleStart = () => setStep(1);
 
@@ -616,7 +641,12 @@ const CreditApplyWizard = ({ onBack }) => {
      if (proceedToStep3) proceedToStep3();
 
      setStep(3);
-     await runEngine();
+  };
+
+  const handleRunAssessment = async () => {
+    lockInputs();
+    if (proceedToStep3) proceedToStep3();
+    await runEngine();
   };
   
   // Prepare "defaultValues" for Step 2 using the hook's current form state
@@ -715,7 +745,8 @@ const CreditApplyWizard = ({ onBack }) => {
                  score={score} 
                  isCalculating={isCalculating} 
                  breakdown={engineResult?.breakdown} 
-                 engineResult={engineResult}
+                         engineResult={engineResult}
+                         onRunAssessment={handleRunAssessment}
                />;
         default:
             return null;
