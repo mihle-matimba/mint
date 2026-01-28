@@ -632,6 +632,7 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
 const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
    const [autoAdvance, setAutoAdvance] = useState(false);
+   const [checkedExistingScore, setCheckedExistingScore] = useState(false);
   
   // Real Hook Integration
   const { 
@@ -681,6 +682,30 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
          setStep(3);
       }
    }, [loadingProfile, step, onboardingEmployerName, contractTypeLocked, sectorLocked, yearsAtEmployerLocked]);
+
+   useEffect(() => {
+      if (loadingProfile || checkedExistingScore) return;
+
+      const checkExistingScore = async () => {
+         if (!supabase) return;
+         const { data: sessionData } = await supabase.auth.getSession();
+         const userId = sessionData?.session?.user?.id;
+         if (!userId) return;
+
+         const { data: scoreData } = await supabase
+            .from("loan_engine_score")
+            .select("id")
+            .eq("user_id", userId)
+            .limit(1)
+            .maybeSingle();
+
+         if (scoreData?.id && onComplete) {
+            onComplete();
+         }
+      };
+
+      checkExistingScore().finally(() => setCheckedExistingScore(true));
+   }, [loadingProfile, checkedExistingScore, onComplete]);
   
   const handleStart = () => setStep(1);
 
