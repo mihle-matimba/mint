@@ -438,7 +438,8 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult }) => {
 // --- ORCHESTRATOR ---
 
 const CreditApplyWizard = ({ onBack }) => {
-  const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
+   const [step, setStep] = useState(0); // 0=Intro, 1=Connect, 2=Enrich, 3=Result
+   const [autoAdvance, setAutoAdvance] = useState(false);
   
   // Real Hook Integration
   const { 
@@ -463,6 +464,16 @@ const CreditApplyWizard = ({ onBack }) => {
       if (snapshot.avg_monthly_expenses) setField("annualExpenses", String(snapshot.avg_monthly_expenses * 12));
     }
   }, [snapshot, setField]);
+
+   useEffect(() => {
+      if (!snapshot || step !== 0) return;
+      setAutoAdvance(true);
+      const timer = setTimeout(() => {
+         setStep(2);
+         setAutoAdvance(false);
+      }, 900);
+      return () => clearTimeout(timer);
+   }, [snapshot, step]);
   
   const handleStart = () => setStep(1);
 
@@ -502,9 +513,28 @@ const CreditApplyWizard = ({ onBack }) => {
   const employerOptions = employerCsv?.map(row => row.split(";")[0]).filter(Boolean).slice(0, 50) || [];
 
   // Render Based on Step
-  const renderContent = () => {
+   const renderContent = () => {
      switch(step) {
         case 0:
+                  if (autoAdvance) {
+                     return (
+                        <MintCard className="animate-in fade-in zoom-in-95 duration-700">
+                           <div className="flex flex-col items-center gap-4 py-8 text-center">
+                              <div className="h-16 w-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center animate-pulse">
+                                 <CheckCircle2 size={28} />
+                              </div>
+                              <div className="space-y-2">
+                                 <h3 className="text-lg font-bold text-slate-900">Bank data already captured</h3>
+                                 <p className="text-sm text-slate-500">Taking you to the review step…</p>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-emerald-600">
+                                 <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+                                 Auto‑continue
+                              </div>
+                           </div>
+                        </MintCard>
+                     );
+                  }
             return (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
                   <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-white shadow-xl">
