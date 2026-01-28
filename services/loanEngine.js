@@ -329,7 +329,7 @@ function computeEmploymentCategoryContribution(overrides = {}) {
   if (rawSector === 'GOVERNMENT' && employerName) {
     valuePercent = 100;
     matchLabel = 'GOVERNMENT';
-  } else if (rawSector === 'PRIVATE' && rawMatch === 'LISTED') {
+  } else if ((rawSector === 'LISTED' || (rawSector === 'PRIVATE' && rawMatch === 'LISTED')) && employerName) {
     valuePercent = 80;
     matchLabel = 'LISTED';
   } else if (rawSector === 'PRIVATE' && rawMatch === 'HIGH_RISK_MANUAL') {
