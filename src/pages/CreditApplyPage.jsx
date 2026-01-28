@@ -415,7 +415,7 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
                           className="group relative outline-none focus-visible:ring-4 focus-visible:ring-purple-500/40 rounded-full transition-all duration-300"
                       >
                          <div
-                            className="w-[240px] h-[240px] rounded-full relative grid place-items-center transition-transform duration-300 ease-out group-hover:scale-[1.02] active:scale-[0.98]"
+                            className="w-[190px] h-[190px] rounded-full relative grid place-items-center transition-transform duration-300 ease-out group-hover:scale-[1.02] active:scale-[0.98]"
                             style={{
                                 background: `
                                     radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.6) 55%, rgba(255, 255, 255, 0)),
@@ -429,43 +429,43 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
                                     )
                                 `,
                                 boxShadow: `
-                                    inset 0 8px 20px rgba(255, 255, 255, 0.8),
-                                    inset 0 -12px 24px rgba(75, 34, 214, 0.15),
-                                    inset 2px 2px 8px rgba(255, 255, 255, 0.4),
-                                    0 20px 48px rgba(75, 34, 214, 0.25),
-                                    0 8px 16px rgba(106, 67, 255, 0.15)
+                                    inset 0 4px 10px rgba(255, 255, 255, 0.8),
+                                    inset 0 -6px 12px rgba(75, 34, 214, 0.1),
+                                    inset 1px 1px 4px rgba(255, 255, 255, 0.4),
+                                    0 10px 24px rgba(75, 34, 214, 0.15),
+                                    0 4px 8px rgba(106, 67, 255, 0.1)
                                 `
                             }}
                          >
                             {/* Inner White Circle */}
                             <div
-                                className="absolute inset-[14px] rounded-full bg-gradient-to-br from-white via-[#faf8ff] to-[#f2edff] z-10"
+                                className="absolute inset-[10px] rounded-full bg-gradient-to-br from-white via-[#faf8ff] to-[#f2edff] z-10"
                                 style={{
                                     boxShadow: `
-                                        0 4px 12px rgba(75, 34, 214, 0.1),
-                                        inset 0 8px 16px rgba(0, 0, 0, 0.02),
-                                        inset 0 -4px 12px rgba(106, 67, 255, 0.04)
+                                        0 2px 6px rgba(75, 34, 214, 0.05),
+                                        inset 0 4px 8px rgba(0, 0, 0, 0.01),
+                                        inset 0 -2px 6px rgba(106, 67, 255, 0.02)
                                     `
                                 }}
                             >
                                 {/* Glare */}
-                                <div className="absolute top-[18px] left-[18px] right-[18px] h-1/2 rounded-t-full bg-gradient-to-b from-white/60 to-transparent blur-md pointer-events-none z-20" />
+                                <div className="absolute top-[14px] left-[14px] right-[14px] h-1/2 rounded-t-full bg-gradient-to-b from-white/60 to-transparent blur-md pointer-events-none z-20" />
                             </div>
 
                             {/* Content */}
                             <div className="relative z-30 text-center flex flex-col items-center">
                                 <span
-                                    className="text-6xl font-extrabold tracking-tighter"
+                                    className="text-5xl font-light tracking-tight"
                                     style={{
                                         background: 'linear-gradient(135deg, #4b22d6 0%, #6a43ff 50%, #8d6bff 100%)',
                                         WebkitBackgroundClip: 'text',
                                         WebkitTextFillColor: 'transparent',
-                                        filter: 'drop-shadow(0 2px 4px rgba(75, 34, 214, 0.15))'
+                                        filter: 'drop-shadow(0 1px 2px rgba(75, 34, 214, 0.1))'
                                     }}
                                 >
                                     {Math.round(isCalculating ? loaderValue : score)}%
                                 </span>
-                                <span className="text-sm font-semibold text-slate-400 mt-2 tracking-wide uppercase">
+                                <span className="text-[11px] font-medium text-slate-400 mt-2 tracking-widest uppercase">
                                     {statusText}
                                 </span>
                             </div>
