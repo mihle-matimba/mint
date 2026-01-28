@@ -345,6 +345,23 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 // Stage 3: Results
 const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAssessment }) => {
       const [showAllData, setShowAllData] = useState(false);
+      const [loaderValue, setLoaderValue] = useState(0);
+
+      useEffect(() => {
+         let interval;
+         if (isCalculating) {
+             setLoaderValue(0);
+             interval = setInterval(() => {
+                 setLoaderValue(prev => {
+                     if (prev >= 99) return 99;
+                     return prev + 0.5;
+                 });
+             }, 20);
+         } else if (score > 0) {
+             setLoaderValue(score);
+         }
+         return () => clearInterval(interval);
+      }, [isCalculating, score]);
 
       const sanitizeData = (value) => {
          if (Array.isArray(value)) return value.map(sanitizeData);
@@ -372,38 +389,89 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
       const scoreReasons = engineResult?.scoreReasons || [];
       const tenureMonths = engineResult?.breakdown?.employmentTenure?.monthsInCurrentJob;
 
-      // Map breakdown or default fake data
-      const categories = breakdown ? Object.entries(breakdown).map(([k, v]) => ({
-            label: k.replace(/([A-Z])/g, " $1").trim(),
-            value: Math.min(100, (v?.contributionPercent || 0) * 100),
-            weight: '25%'
-      })) : [
-            { label: 'Affordability', value: 85 },
-            { label: 'Stability', value: 90 },
-            { label: 'Credit', value: 75 },
-            { label: 'Behavior', value: 65 }
-      ];
-
       const hasAssessment = score > 0 || isCalculating;
+
+      const progressDeg = (isCalculating ? loaderValue : score) * 3.6;
+
+      const statusMessages = [
+        'Initializing...',
+        'Connecting...',
+        'Processing...',
+        'Analyzing...',
+        'Finalizing...'
+      ];
+      const messageIndex = Math.min(statusMessages.length - 1, Math.floor((loaderValue / 100) * statusMessages.length));
+      const statusText = hasAssessment 
+        ? (isCalculating ? statusMessages[messageIndex] : "Trust Score")
+        : "Start Check";
+
 
       return (
             <MintCard className="animate-in zoom-in-95 duration-500 min-h-[400px]">
-                  <MintRadarChart 
-                        score={score} 
-                        categories={categories} 
-                        isCalculating={isCalculating}
-                  />
+                  <div className="flex flex-col items-center justify-center py-12">
+                      <button
+                          onClick={hasAssessment ? undefined : onRunAssessment}
+                          disabled={hasAssessment}
+                          className="group relative outline-none focus-visible:ring-4 focus-visible:ring-purple-500/40 rounded-full transition-all duration-300"
+                      >
+                         <div
+                            className="w-[240px] h-[240px] rounded-full relative grid place-items-center transition-transform duration-300 ease-out group-hover:scale-[1.02] active:scale-[0.98]"
+                            style={{
+                                background: `
+                                    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.6) 55%, rgba(255, 255, 255, 0)),
+                                    conic-gradient(
+                                    from -90deg,
+                                    #6a43ff 0deg,
+                                    #9370ff ${Math.max(0.1, progressDeg * 0.8)}deg,
+                                    #8d6bff ${Math.max(0.1, progressDeg)}deg,
+                                    rgba(106, 67, 255, 0.15) ${Math.max(0.1, progressDeg)}deg,
+                                    rgba(106, 67, 255, 0.08) 360deg
+                                    )
+                                `,
+                                boxShadow: `
+                                    inset 0 8px 20px rgba(255, 255, 255, 0.8),
+                                    inset 0 -12px 24px rgba(75, 34, 214, 0.15),
+                                    inset 2px 2px 8px rgba(255, 255, 255, 0.4),
+                                    0 20px 48px rgba(75, 34, 214, 0.25),
+                                    0 8px 16px rgba(106, 67, 255, 0.15)
+                                `
+                            }}
+                         >
+                            {/* Inner White Circle */}
+                            <div
+                                className="absolute inset-[14px] rounded-full bg-gradient-to-br from-white via-[#faf8ff] to-[#f2edff] z-10"
+                                style={{
+                                    boxShadow: `
+                                        0 4px 12px rgba(75, 34, 214, 0.1),
+                                        inset 0 8px 16px rgba(0, 0, 0, 0.02),
+                                        inset 0 -4px 12px rgba(106, 67, 255, 0.04)
+                                    `
+                                }}
+                            >
+                                {/* Glare */}
+                                <div className="absolute top-[18px] left-[18px] right-[18px] h-1/2 rounded-t-full bg-gradient-to-b from-white/60 to-transparent blur-md pointer-events-none z-20" />
+                            </div>
 
-                  {!hasAssessment && (
-                     <div className="pt-8 border-t border-slate-50 mt-8">
-                        <button
-                           onClick={onRunAssessment}
-                           className="w-full h-[60px] rounded-full bg-gradient-to-r from-slate-900 to-slate-800 text-white text-sm font-bold uppercase tracking-widest shadow-xl shadow-purple-900/20 hover:-translate-y-1 transition-all"
-                        >
-                           Run Assessment
-                        </button>
-                     </div>
-                  )}
+                            {/* Content */}
+                            <div className="relative z-30 text-center flex flex-col items-center">
+                                <span
+                                    className="text-6xl font-extrabold tracking-tighter"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #4b22d6 0%, #6a43ff 50%, #8d6bff 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        filter: 'drop-shadow(0 2px 4px rgba(75, 34, 214, 0.15))'
+                                    }}
+                                >
+                                    {Math.round(isCalculating ? loaderValue : score)}%
+                                </span>
+                                <span className="text-sm font-semibold text-slate-400 mt-2 tracking-wide uppercase">
+                                    {statusText}
+                                </span>
+                            </div>
+                         </div>
+                      </button>
+                  </div>
 
                   {!isCalculating && score > 0 && (
                      <div className="pt-8 border-t border-slate-50 mt-8 space-y-4">
