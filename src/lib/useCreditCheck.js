@@ -47,6 +47,16 @@ const CONTRACT_TYPE_VALUES = new Set([
   "SELF_EMPLOYED_12_PLUS"
 ]);
 
+const normalizeSectorValue = (value) => {
+  if (!value) return null;
+  const normalized = String(value).trim().toLowerCase();
+  if (normalized === "listed company" || normalized === "listed") return "listed";
+  if (normalized === "government" || normalized === "gov" || normalized === "public") return "government";
+  if (normalized === "private") return "private";
+  if (normalized === "other") return "other";
+  return null;
+};
+
 const normalizeNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -67,6 +77,7 @@ export function useCreditCheck() {
   const [snapshot, setSnapshot] = useState(null);
   const [onboardingEmployerName, setOnboardingEmployerName] = useState(null);
   const [onboardingEmploymentType, setOnboardingEmploymentType] = useState(null);
+  const [onboardingEmploymentSector, setOnboardingEmploymentSector] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [intakeError, setIntakeError] = useState("");
   const [locked, setLocked] = useState(false);
@@ -154,7 +165,7 @@ export function useCreditCheck() {
 
       const { data: onboardingData } = await supabase
         .from("user_onboarding")
-        .select("employer_name,employment_type")
+        .select("employer_name,employment_type,employer_industry")
         .eq("user_id", session.user.id)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -174,8 +185,12 @@ export function useCreditCheck() {
         normalizedEmploymentType && CONTRACT_TYPE_VALUES.has(normalizedEmploymentType)
       );
 
+      const normalizedSector = normalizeSectorValue(onboardingData?.employer_industry);
+      const sectorLocked = Boolean(normalizedSector);
+
       setOnboardingEmployerName(onboardingData?.employer_name || null);
       setOnboardingEmploymentType(normalizedEmploymentType || null);
+      setOnboardingEmploymentSector(normalizedSector || null);
 
       setForm((prev) => ({
         ...prev,
@@ -195,6 +210,9 @@ export function useCreditCheck() {
         contractType: contractTypeLocked
           ? normalizedEmploymentType || prev.contractType
           : prev.contractType,
+        employmentSector: sectorLocked
+          ? normalizedSector || prev.employmentSector
+          : prev.employmentSector,
         isNewBorrower: (prev.isNewBorrower || "")
           ? prev.isNewBorrower
           : loanCount === 1
@@ -311,6 +329,7 @@ export function useCreditCheck() {
   const contractTypeLocked = Boolean(
     onboardingEmploymentType && CONTRACT_TYPE_VALUES.has(onboardingEmploymentType)
   );
+  const sectorLocked = Boolean(onboardingEmploymentSector);
 
   return {
     form,
@@ -332,6 +351,8 @@ export function useCreditCheck() {
     onboardingEmployerName,
     onboardingEmploymentType,
     contractTypeLocked,
+    onboardingEmploymentSector,
+    sectorLocked,
     proceedToStep3,
     isUpdatingLoan
   };

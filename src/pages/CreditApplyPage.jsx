@@ -207,13 +207,28 @@ const ConnectionStage = ({ onComplete, onError }) => {
 
 
 // Stage 2: Enrichment (Review Details)
-const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked, contractLocked }) => {
+const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLocked, contractLocked, sectorLocked }) => {
   const [formData, setFormData] = useState({
       employerName: defaultValues?.employerName || "",
       employmentSector: defaultValues?.employmentSector || "",
       contractType: defaultValues?.contractType || "",
       ...defaultValues
   });
+
+   const formatContractLabel = (value) => {
+      switch (value) {
+         case "PERMANENT":
+            return "Permanent";
+         case "FIXED_TERM_12_PLUS":
+            return "Fixed Term (>12m)";
+         case "FIXED_TERM_LT_12":
+            return "Fixed Term (<12m)";
+         case "SELF_EMPLOYED_12_PLUS":
+            return "Self Employed";
+         default:
+            return value ? value.replace(/_/g, " ") : "--";
+      }
+   };
 
   useEffect(() => {
     // Keep internal state in sync if defaultValues updates from parent
@@ -261,25 +276,37 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
                <div className="grid grid-cols-2 gap-4">
                   <label className="block">
                      <span className="text-xs font-bold text-slate-400 uppercase">Sector</span>
-                     <select 
-                        value={formData.employmentSector}
-                        onChange={(e) => handleChange('employmentSector', e.target.value)}
-                        className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
-                     >
-                         <option value="">Select...</option>
-                         <option value="government">Government</option>
-                         <option value="private">Private</option>
-                         <option value="listed">Listed Company</option>
-                         <option value="other">Other</option>
-                     </select>
+                     {sectorLocked ? (
+                        <div className="mt-1 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+                           {formData.employmentSector === "listed"
+                              ? "Listed Company"
+                              : formData.employmentSector === "government"
+                                ? "Government"
+                                : formData.employmentSector === "private"
+                                  ? "Private"
+                                  : formData.employmentSector === "other"
+                                    ? "Other"
+                                    : "--"}
+                        </div>
+                     ) : (
+                        <select 
+                           value={formData.employmentSector}
+                           onChange={(e) => handleChange('employmentSector', e.target.value)}
+                           className="w-full mt-1 border-b border-slate-200 bg-transparent py-2 text-sm font-semibold focus:border-slate-900 focus:outline-none"
+                        >
+                            <option value="">Select...</option>
+                            <option value="government">Government</option>
+                            <option value="private">Private</option>
+                            <option value="listed">Listed Company</option>
+                            <option value="other">Other</option>
+                        </select>
+                     )}
                   </label>
                   <label className="block">
                      <span className="text-xs font-bold text-slate-400 uppercase">Contract</span>
                      {contractLocked ? (
                         <div className="mt-1 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-                           {formData.contractType
-                              ? formData.contractType.replace(/_/g, " ")
-                              : "--"}
+                           {formatContractLabel(formData.contractType)}
                         </div>
                      ) : (
                         <select 
@@ -520,7 +547,8 @@ const CreditApplyWizard = ({ onBack }) => {
       proceedToStep3, // Import this to save progress to DB
       loadingProfile,
       onboardingEmployerName,
-      contractTypeLocked
+      contractTypeLocked,
+      sectorLocked
   } = useCreditCheck();
 
   const isCalculating = engineStatus === "Running";
@@ -561,7 +589,7 @@ const CreditApplyWizard = ({ onBack }) => {
      if(finalData.employmentSector) setField("employmentSector", finalData.employmentSector);
      if(finalData.contractType) setField("contractType", finalData.contractType);
 
-     if ((!onboardingEmployerName && finalData.employerName) || (!contractTypeLocked && finalData.contractType)) {
+     if ((!onboardingEmployerName && finalData.employerName) || (!contractTypeLocked && finalData.contractType) || (!sectorLocked && finalData.employmentSector)) {
         try {
            const { data: { session } } = await supabase.auth.getSession();
            const userId = session?.user?.id;
@@ -572,7 +600,8 @@ const CreditApplyWizard = ({ onBack }) => {
                    user_id: userId,
                    employment_status: "employed",
                    employer_name: finalData.employerName,
-                   employment_type: finalData.contractType
+                   employment_type: finalData.contractType,
+                   employer_industry: finalData.employmentSector
                 }, { onConflict: "user_id" });
            }
         } catch (error) {
@@ -679,6 +708,7 @@ const CreditApplyWizard = ({ onBack }) => {
                  onSubmit={handleEnrichmentSubmit} 
                  employerLocked={Boolean(onboardingEmployerName)}
                  contractLocked={contractTypeLocked}
+                 sectorLocked={sectorLocked}
                />;
       case 3:
          return <ResultStage 
