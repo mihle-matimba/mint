@@ -77,6 +77,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
   const [disclaimerVisible, setDisclaimerVisible] = useState(true);
   const [repayableInfoVisible, setRepayableInfoVisible] = useState(false);
   const [repayableAmount, setRepayableAmount] = useState(0);
+  const [submitStatus, setSubmitStatus] = useState(null);
 
   const disclaimerTimer = useRef(null);
 
@@ -241,6 +242,8 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
       if (!salaryPaymentDay) return;
       if (!repaymentSchedule.length) return;
 
+      setSubmitStatus("loading");
+
       const totalRepayment = calculateTotalRepayment(Number(loanAmount), Number(loanMonths));
       const monthly = totalRepayment / Number(loanMonths);
       const firstPaymentDate = getNextSalaryDate(salaryPaymentDay, new Date());
@@ -250,7 +253,7 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
 
       if (loanRecord?.id) {
         const effectiveRate = (totalRepayment - Number(loanAmount)) / Number(loanAmount);
-        await updateLoan(loanRecord.id, {
+        const updated = await updateLoan(loanRecord.id, {
           principal_amount: Number(loanAmount),
           amount_repayable: totalRepayment,
           first_repayment_date: dateStr,
@@ -261,9 +264,12 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           repayment_schedule: repaymentSchedule,
           step_number: 4
         });
+        setSubmitStatus(updated ? "success" : "error");
+      } else {
+        setSubmitStatus("error");
       }
 
-      if (onComplete) {
+      if (onComplete && submitStatus !== "error") {
         onComplete();
       }
     }
@@ -384,6 +390,24 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
           >
             {buttonText} <ArrowRight size={16} />
           </button>
+
+          {submitStatus && (
+            <p
+              className={`mt-3 text-center text-sm font-semibold ${
+                submitStatus === "success"
+                  ? "text-emerald-600"
+                  : submitStatus === "error"
+                    ? "text-red-500"
+                    : "text-slate-500"
+              }`}
+            >
+              {submitStatus === "success"
+                ? "Loan submitted"
+                : submitStatus === "error"
+                  ? "Loan failed"
+                  : "Submitting..."}
+            </p>
+          )}
 
           <div
             className={`mt-5 rounded-2xl border border-slate-100 bg-slate-50 px-5 py-4 text-left text-sm text-slate-600 transition-all duration-300 ${
