@@ -9,9 +9,9 @@ import CreditSkeleton from "../components/CreditSkeleton";
 import NotificationBell from "../components/NotificationBell";
 
 const defaultCreditOverview = {
-  availableCredit: "R0",
-  score: 0,
-  updatedAt: "Updated today",
+  availableCredit: null,
+  score: null,
+  updatedAt: "Please run your credit check",
   loanBalance: "R8,450",
   nextPaymentDate: "May 30, 2024",
   minDue: "R950",
@@ -128,6 +128,8 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   }
 
   const utilisationWidth = `${creditOverview.utilisationPercent}%`;
+  const hasScore = Number.isFinite(creditOverview.score) && creditOverview.score > 0;
+  const hasAvailableCredit = Boolean(creditOverview.availableCredit);
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -152,7 +154,9 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
 
           <section className="rounded-3xl bg-white/10 p-5 shadow-sm backdrop-blur">
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">Available Credit</p>
-            <p className="mt-3 text-3xl font-semibold">{creditOverview.availableCredit}</p>
+            <p className="mt-3 text-3xl font-semibold">
+              {hasAvailableCredit ? creditOverview.availableCredit : "Coming soon"}
+            </p>
             <div className="mt-4 inline-flex items-center rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100">
               Good standing
             </div>
@@ -165,15 +169,19 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-slate-700">Credit Score</p>
-              <p className="mt-2 text-3xl font-semibold text-slate-900">{creditOverview.score}</p>
-              <p className="mt-1 text-xs text-slate-400">{creditOverview.updatedAt}</p>
+              <p className="mt-2 text-3xl font-semibold text-slate-900">
+                {hasScore ? creditOverview.score : "—"}
+              </p>
+              <p className="mt-1 text-xs text-slate-400">
+                {hasScore ? creditOverview.updatedAt : "Please run your credit check"}
+              </p>
             </div>
             <button
               type="button"
               onClick={() => navigate("score")}
               className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
             >
-              View score
+              {hasScore ? "View score" : "Run credit check"}
             </button>
           </div>
         </CreditMetricCard>
