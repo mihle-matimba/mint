@@ -677,10 +677,10 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
    useEffect(() => {
       if (loadingProfile) return;
       if (step !== 2) return;
-      if (onboardingEmployerName && contractTypeLocked && sectorLocked) {
+      if (onboardingEmployerName && contractTypeLocked && sectorLocked && yearsAtEmployerLocked) {
          setStep(3);
       }
-   }, [loadingProfile, step, onboardingEmployerName, contractTypeLocked, sectorLocked]);
+   }, [loadingProfile, step, onboardingEmployerName, contractTypeLocked, sectorLocked, yearsAtEmployerLocked]);
   
   const handleStart = () => setStep(1);
 
