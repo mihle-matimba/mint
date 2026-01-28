@@ -40,6 +40,13 @@ const normalizeContractTypeValue = (value) => {
   return aliasMap[normalized] || normalized || null;
 };
 
+const CONTRACT_TYPE_VALUES = new Set([
+  "PERMANENT",
+  "FIXED_TERM_12_PLUS",
+  "FIXED_TERM_LT_12",
+  "SELF_EMPLOYED_12_PLUS"
+]);
+
 const normalizeNumber = (value) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -59,6 +66,7 @@ export function useCreditCheck() {
   const [profile, setProfile] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [onboardingEmployerName, setOnboardingEmployerName] = useState(null);
+  const [onboardingEmploymentType, setOnboardingEmploymentType] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [intakeError, setIntakeError] = useState("");
   const [locked, setLocked] = useState(false);
@@ -146,7 +154,7 @@ export function useCreditCheck() {
 
       const { data: onboardingData } = await supabase
         .from("user_onboarding")
-        .select("employer_name")
+        .select("employer_name,employment_type")
         .eq("user_id", session.user.id)
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -161,7 +169,13 @@ export function useCreditCheck() {
 
       setProfile(profileData || null);
       setSnapshot(snapshotData || null);
+      const normalizedEmploymentType = normalizeContractTypeValue(onboardingData?.employment_type);
+      const contractTypeLocked = Boolean(
+        normalizedEmploymentType && CONTRACT_TYPE_VALUES.has(normalizedEmploymentType)
+      );
+
       setOnboardingEmployerName(onboardingData?.employer_name || null);
+      setOnboardingEmploymentType(normalizedEmploymentType || null);
 
       setForm((prev) => ({
         ...prev,
@@ -178,6 +192,9 @@ export function useCreditCheck() {
           ? String(snapshotData.avg_monthly_expenses * 12)
           : prev.annualExpenses,
         employerName: onboardingData?.employer_name || prev.employerName,
+        contractType: contractTypeLocked
+          ? normalizedEmploymentType || prev.contractType
+          : prev.contractType,
         isNewBorrower: (prev.isNewBorrower || "")
           ? prev.isNewBorrower
           : loanCount === 1
@@ -291,6 +308,10 @@ export function useCreditCheck() {
     setIsUpdatingLoan(false);
   }, [loanRecord]);
 
+  const contractTypeLocked = Boolean(
+    onboardingEmploymentType && CONTRACT_TYPE_VALUES.has(onboardingEmploymentType)
+  );
+
   return {
     form,
     setField,
@@ -309,6 +330,8 @@ export function useCreditCheck() {
     employerCsv,
     warnings,
     onboardingEmployerName,
+    onboardingEmploymentType,
+    contractTypeLocked,
     proceedToStep3,
     isUpdatingLoan
   };
