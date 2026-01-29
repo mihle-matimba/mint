@@ -893,9 +893,9 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                   }
             return (
                 <div className="animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-8">
-                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-white shadow-xl">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 text-slate-900 shadow-xl">
                      <h2 className="text-xl font-bold mb-2">Welcome to Mint Credit</h2>
-                     <p className="text-white/70 text-sm leading-relaxed">
+                     <p className="text-slate-700 text-sm leading-relaxed">
                         Sophisticated credit solutions tailored to your financial profile. 
                         We evaluate your real-time banking behavior, not just your history.
                      </p>
@@ -903,30 +903,30 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
 
                   {!loadingLoans && loanApplications.length > 0 && (
                      <div className="space-y-3">
-                        <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                        <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                            Your loan applications
                         </p>
                         <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
                            {loanApplications.map((loan) => (
                               <div key={loan.id} className="min-w-[85%] snap-center">
-                                 <div className="rounded-3xl border border-white/20 bg-white/10 p-5 text-white shadow-xl">
+                                 <div className="rounded-3xl border border-white/20 bg-white/10 p-5 text-slate-900 shadow-xl">
                                     <div className="flex items-center justify-between">
-                                       <p className="text-xs uppercase tracking-[0.2em] text-white/70">Application</p>
-                                       <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest">
+                                       <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Application</p>
+                                       <span className="rounded-full bg-white/20 px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-slate-700">
                                           {loan.status || "in_progress"}
                                        </span>
                                     </div>
                                     <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                                        <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-white/50">Principal</p>
+                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Principal</p>
                                           <p className="mt-1 text-lg font-semibold">{formatAmount(loan.principal_amount)}</p>
                                        </div>
                                        <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-white/50">Repayable</p>
+                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Repayable</p>
                                           <p className="mt-1 text-lg font-semibold">{formatAmount(loan.amount_repayable)}</p>
                                        </div>
                                        <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-white/50">First payment</p>
+                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">First payment</p>
                                           <p className="mt-1 text-sm font-semibold">
                                              {loan.first_repayment_date
                                                 ? new Date(loan.first_repayment_date).toLocaleDateString("en-GB", {
@@ -938,7 +938,7 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                                           </p>
                                        </div>
                                        <div>
-                                          <p className="text-[10px] uppercase tracking-widest text-white/50">Months</p>
+                                          <p className="text-[10px] uppercase tracking-widest text-slate-500">Months</p>
                                           <p className="mt-1 text-sm font-semibold">{loan.number_of_months || "—"}</p>
                                        </div>
                                     </div>

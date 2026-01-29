@@ -4,6 +4,7 @@ import path from 'path';
 import truIDClient from '../../services/truidClient.js';
 
 const REQUIRED_ENV = ['TRUID_API_KEY', 'TRUID_API_BASE', 'COMPANY_ID', 'BRAND_ID', 'WEBHOOK_URL', 'REDIRECT_URL'];
+const readEnv = (key) => process.env[key] || process.env[`VITE_${key}`];
 const SUPABASE_URL =
   process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY =
@@ -24,7 +25,7 @@ function applyCors(res) {
 }
 
 function respondMissingEnv(res) {
-  const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+  const missing = REQUIRED_ENV.filter((key) => !readEnv(key));
   if (!missing.length) return false;
   res.status(500).json({
     success: false,

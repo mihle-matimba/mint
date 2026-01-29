@@ -1,15 +1,17 @@
 import axios from 'axios';
 
+const readEnv = (key) => process.env[key] || process.env[`VITE_${key}`];
+
 class TruIDClient {
   constructor() {
-    this.apiKey = process.env.TRUID_API_KEY;
-    this.subscriptionKey = process.env.TRUID_SUBSCRIPTION_KEY || process.env.TRUID_API_KEY;
-    const configuredBase = process.env.TRUID_API_BASE || 'https://api.truidconnect.io';
+    this.apiKey = readEnv('TRUID_API_KEY');
+    this.subscriptionKey = readEnv('TRUID_SUBSCRIPTION_KEY') || this.apiKey;
+    const configuredBase = readEnv('TRUID_API_BASE') || 'https://api.truidconnect.io';
     this.baseURL = configuredBase.replace(/\/$/, '');
-    this.companyId = process.env.COMPANY_ID;
-    this.brandId = process.env.BRAND_ID;
-    this.redirectUrl = process.env.REDIRECT_URL;
-    this.webhookUrl = process.env.WEBHOOK_URL;
+    this.companyId = readEnv('COMPANY_ID');
+    this.brandId = readEnv('BRAND_ID');
+    this.redirectUrl = readEnv('REDIRECT_URL');
+    this.webhookUrl = readEnv('WEBHOOK_URL');
 
     this.consultantClient = axios.create({
       baseURL: `${this.baseURL}/consultant-api`,
@@ -50,16 +52,16 @@ class TruIDClient {
 
   buildConsumerUrl(consentId) {
     if (!consentId) return null;
-    const scheme = process.env.TRUID_SCHEME || 'https';
-    const domain = process.env.TRUID_DOMAIN || 'hello.truidconnect.io';
+    const scheme = readEnv('TRUID_SCHEME') || 'https';
+    const domain = readEnv('TRUID_DOMAIN') || 'hello.truidconnect.io';
     const host = domain.startsWith('www.') ? domain : `www.${domain}`;
     return `${scheme}://${host}/consents/${consentId}`;
   }
 
   normalizeConsumerUrl(url) {
     if (!url || typeof url !== 'string') return url;
-    const scheme = process.env.TRUID_SCHEME || 'https';
-    const domain = process.env.TRUID_DOMAIN;
+    const scheme = readEnv('TRUID_SCHEME') || 'https';
+    const domain = readEnv('TRUID_DOMAIN');
 
     if (!domain) return url;
 
