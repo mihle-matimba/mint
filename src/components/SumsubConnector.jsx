@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
+import { supabase } from "../lib/supabase.js";
 
 const styles = {
   wrapper: {
@@ -127,6 +128,12 @@ const steps = [
   { id: "status-4", label: "Connection established" },
 ];
 
+const LOCAL_STORAGE_KEYS = {
+  externalUserId: "sumsub_external_user_id",
+  applicantId: "sumsub_applicant_id",
+  websdkUrl: "sumsub_websdk_url",
+};
+
 function getUUID() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -136,13 +143,16 @@ function getUUID() {
   });
 }
 
-export function SumsubConnector({ apiBase = "", onStart }) {
+export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
   const [state, setState] = useState("idle");
   const [statusMap, setStatusMap] = useState(() =>
     steps.reduce((acc, step) => ({ ...acc, [step.id]: "pending" }), {})
   );
   const [websdkUrl, setWebsdkUrl] = useState("");
+  const [applicantId, setApplicantId] = useState("");
   const [error, setError] = useState("");
+  const [verificationStatus, setVerificationStatus] = useState("idle");
+  const [verificationMessage, setVerificationMessage] = useState("");
 
   const buttonLabel = useMemo(() => {
     if (state === "loading") return "Processing...";
@@ -158,18 +168,39 @@ export function SumsubConnector({ apiBase = "", onStart }) {
     setStatusMap(steps.reduce((acc, step) => ({ ...acc, [step.id]: "pending" }), {}));
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storedApplicantId = localStorage.getItem(LOCAL_STORAGE_KEYS.applicantId) || "";
+    const storedWebsdkUrl = localStorage.getItem(LOCAL_STORAGE_KEYS.websdkUrl) || "";
+    if (storedApplicantId) setApplicantId(storedApplicantId);
+    if (storedWebsdkUrl) setWebsdkUrl(storedWebsdkUrl);
+  }, []);
+
   const run = useCallback(async () => {
     if (state === "loading") return;
     if (onStart) onStart();
     setState("loading");
     setError("");
     setWebsdkUrl("");
+    setApplicantId("");
+    setVerificationStatus("idle");
+    setVerificationMessage("");
     resetStatuses();
     setStatus("status-1", "loading");
 
     try {
-      const stored = localStorage.getItem("sumsub_external_user_id");
-      const externalUserId = stored || `mint-${getUUID()}`;
+      let externalUserId = localStorage.getItem(LOCAL_STORAGE_KEYS.externalUserId);
+
+      if (!externalUserId && supabase) {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user?.id) {
+          externalUserId = data.user.id;
+        }
+      }
+
+      if (!externalUserId) {
+        externalUserId = `mint-${getUUID()}`;
+      }
 
       const resp = await fetch(`${apiBase}/api/samsub/init-websdk`, {
         method: "POST",
@@ -183,7 +214,7 @@ export function SumsubConnector({ apiBase = "", onStart }) {
         throw new Error(message);
       }
 
-      localStorage.setItem("sumsub_external_user_id", externalUserId);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.externalUserId, externalUserId);
 
       setStatus("status-1", "success");
       setStatus("status-2", "loading");
@@ -195,8 +226,14 @@ export function SumsubConnector({ apiBase = "", onStart }) {
       setStatus("status-4", "success");
 
       const link = payload?.data?.websdkUrl;
+      const applicant = payload?.data?.applicantId;
       if (!link) throw new Error("Missing WebSDK URL in response");
+      if (applicant) {
+        setApplicantId(applicant);
+        localStorage.setItem(LOCAL_STORAGE_KEYS.applicantId, applicant);
+      }
       setWebsdkUrl(link);
+      localStorage.setItem(LOCAL_STORAGE_KEYS.websdkUrl, link);
       setState("success");
     } catch (err) {
       setError(err?.message || "Unable to start Sumsub");
@@ -204,6 +241,52 @@ export function SumsubConnector({ apiBase = "", onStart }) {
       resetStatuses();
     }
   }, [apiBase, onStart, resetStatuses, setStatus, state]);
+
+  const checkStatus = useCallback(async () => {
+    if (!applicantId || verificationStatus === "checking") return;
+    setVerificationStatus("checking");
+    setVerificationMessage("");
+
+    try {
+      const resp = await fetch(`${apiBase}/api/samsub/status/${applicantId}`);
+      const payload = await resp.json();
+      if (!resp.ok || !payload?.success) {
+        const message = payload?.error?.message || "Unable to fetch status";
+        throw new Error(message);
+      }
+
+      const outcome = payload?.data?.outcome || "pending";
+      if (outcome === "completed") {
+        setVerificationStatus("verified");
+        setVerificationMessage("Verification complete.");
+
+        if (supabase) {
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData?.user?.id) {
+            await supabase
+              .from("required_actions")
+              .update({ kyc_verified: true })
+              .eq("user_id", userData.user.id);
+          }
+        }
+
+        if (onVerified) onVerified();
+        return;
+      }
+
+      if (outcome === "failed") {
+        setVerificationStatus("failed");
+        setVerificationMessage("Verification failed. Please retry.");
+        return;
+      }
+
+      setVerificationStatus("pending");
+      setVerificationMessage("Verification is still pending.");
+    } catch (err) {
+      setVerificationStatus("failed");
+      setVerificationMessage(err?.message || "Unable to fetch status");
+    }
+  }, [apiBase, applicantId, onVerified, verificationStatus]);
 
   return (
     <div style={styles.wrapper}>
@@ -275,7 +358,25 @@ export function SumsubConnector({ apiBase = "", onStart }) {
           </div>
         )}
 
-        <div style={styles.helper}>This will securely connect your Samsung device to MINT.</div>
+        {applicantId && (
+          <div style={{ marginTop: 18 }}>
+            <button
+              type="button"
+              style={styles.button(verificationStatus === "verified" ? "success" : "idle")}
+              onClick={checkStatus}
+              disabled={verificationStatus === "checking"}
+            >
+              {verificationStatus === "checking" ? "Checking status..." : "Check verification status"}
+            </button>
+            {verificationMessage && (
+              <div style={{ marginTop: 10, fontSize: 13, color: "#4b3f63" }}>
+                {verificationMessage}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={styles.helper}>This will securely connect your account to MINT for verification.</div>
       </div>
     </div>
   );
