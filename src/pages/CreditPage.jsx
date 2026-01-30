@@ -199,9 +199,14 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             <button
               type="button"
               onClick={() => navigate("score")}
-              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+              disabled={!hasScore}
+              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+                hasScore
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
             >
-              {hasScore ? "View score" : "Run credit check"}
+              View Mint score
             </button>
           </div>
         </CreditMetricCard>
