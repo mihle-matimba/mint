@@ -5,6 +5,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
+import LoanConfigurationPage from "./pages/LoanConfigurationPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
@@ -199,12 +200,31 @@ const App = () => {
     return (
       <AppLayout activeTab="credit" onTabChange={setCurrentPage}>
         <CreditPage
-          onOpenNotifications={() => {
-            setNotificationReturnPage("credit");
-            setCurrentPage("notifications");
-          }}
-        />
+            onOpenNotifications={() => {
+              setNotificationReturnPage("credit");
+              setCurrentPage("notifications");
+            }}
+            onOpenTruID={() => setCurrentPage("creditApply")}
+          />
       </AppLayout>
+    );
+  }
+
+  if (currentPage === "creditApply") {
+    return (
+      <CreditApplyPage
+        onBack={() => setCurrentPage("credit")}
+        onComplete={() => setCurrentPage("loanConfig")}
+      />
+    );
+  }
+
+  if (currentPage === "loanConfig") {
+    return (
+      <LoanConfigurationPage
+        onBack={() => setCurrentPage("creditApply")}
+        onComplete={() => setCurrentPage("credit")}
+      />
     );
   }
 
@@ -395,10 +415,6 @@ const App = () => {
 
   if (currentPage === "actions") {
     return <ActionsPage onBack={() => setCurrentPage("home")} />;
-  }
-
-  if (currentPage === "creditApply") {
-    return <CreditApplyPage />;
   }
 
   if (currentPage === "creditRepay") {
