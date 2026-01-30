@@ -134,6 +134,15 @@ const LOCAL_STORAGE_KEYS = {
   websdkUrl: "sumsub_websdk_url",
 };
 
+const buildEndpoint = (base, path) => {
+  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+  if (!base) return normalizedPath;
+  const trimmedBase = base.replace(/\/+$/, "");
+  if (trimmedBase.endsWith(normalizedPath)) return trimmedBase;
+  if (trimmedBase.endsWith("/api")) return `${trimmedBase}${normalizedPath}`;
+  return `${trimmedBase}${normalizedPath}`;
+};
+
 function getUUID() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
   return "xxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
@@ -202,7 +211,8 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
         externalUserId = `mint-${getUUID()}`;
       }
 
-      const resp = await fetch(`${apiBase}/api/samsub/init-websdk`, {
+      const initEndpoint = buildEndpoint(apiBase, "/api/samsub/init-websdk");
+      const resp = await fetch(initEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ externalUserId }),
@@ -248,7 +258,11 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
     setVerificationMessage("");
 
     try {
-      const resp = await fetch(`${apiBase}/api/samsub/status/${applicantId}`);
+      const statusEndpoint = buildEndpoint(
+        apiBase,
+        `/api/samsub/status/${encodeURIComponent(applicantId)}`
+      );
+      const resp = await fetch(statusEndpoint);
       const payload = await resp.json();
       if (!resp.ok || !payload?.success) {
         const message = payload?.error?.message || "Unable to fetch status";
