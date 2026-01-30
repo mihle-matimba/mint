@@ -12,9 +12,9 @@ const defaultCreditOverview = {
   availableCredit: null,
   score: null,
   updatedAt: "Please run your credit check",
-  loanBalance: "R8,450",
-  nextPaymentDate: "May 30, 2024",
-  minDue: "R950",
+  loanBalance: null,
+  nextPaymentDate: null,
+  minDue: null,
   utilisationPercent: 62,
 };
 
@@ -103,6 +103,9 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
         } else {
           next.loanStatus = null;
           next.amountRepayable = null;
+          next.loanBalance = null;
+          next.nextPaymentDate = null;
+          next.minDue = null;
         }
 
         return next;
@@ -129,6 +132,20 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   const utilisationWidth = `${creditOverview.utilisationPercent}%`;
   const hasScore = Number.isFinite(creditOverview.score) && creditOverview.score > 0;
   const hasAvailableCredit = Boolean(creditOverview.availableCredit);
+  const hasLoanDetails = Boolean(
+    creditOverview.loanStatus
+    || creditOverview.loanBalance
+    || creditOverview.nextPaymentDate
+    || creditOverview.minDue
+    || creditOverview.amountRepayable
+  );
+  const standingInfo = hasScore
+    ? creditOverview.score >= 80
+      ? { label: "Good standing", className: "bg-emerald-400/20 text-emerald-100" }
+      : creditOverview.score >= 60
+        ? { label: "Moderate standing", className: "bg-amber-400/20 text-amber-100" }
+        : { label: "Bad standing", className: "bg-rose-400/20 text-rose-100" }
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -154,11 +171,15 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
           <section className="rounded-3xl bg-white/10 p-5 shadow-sm backdrop-blur">
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">Available Credit</p>
             <p className="mt-3 text-3xl font-semibold">
-              {hasAvailableCredit ? creditOverview.availableCredit : "Coming soon"}
+              {hasAvailableCredit ? creditOverview.availableCredit : "Engine score not initiated"}
             </p>
-            <div className="mt-4 inline-flex items-center rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100">
-              Good standing
-            </div>
+            {standingInfo && (
+              <div
+                className={`mt-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${standingInfo.className}`}
+              >
+                {standingInfo.label}
+              </div>
+            )}
           </section>
         </div>
       </div>
@@ -199,24 +220,39 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-slate-400">Principal amount</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.loanBalance}</p>
+          {hasLoanDetails ? (
+            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+              {creditOverview.loanBalance && (
+                <div>
+                  <p className="text-xs text-slate-400">Principal amount</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.loanBalance}</p>
+                </div>
+              )}
+              {creditOverview.nextPaymentDate && (
+                <div>
+                  <p className="text-xs text-slate-400">First repayment date</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.nextPaymentDate}</p>
+                </div>
+              )}
+              {creditOverview.minDue && (
+                <div>
+                  <p className="text-xs text-slate-400">Monthly repayable</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.minDue}</p>
+                </div>
+              )}
+              {creditOverview.amountRepayable && (
+                <div>
+                  <p className="text-xs text-slate-400">Amount repayable</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.amountRepayable}</p>
+                </div>
+              )}
             </div>
-            <div>
-              <p className="text-xs text-slate-400">First repayment date</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.nextPaymentDate}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Monthly repayable</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.minDue}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Amount repayable</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.amountRepayable || "—"}</p>
-            </div>
-          </div>
+          ) : (
+            <p className="mt-5 text-sm text-slate-500">
+              To view detailed loan information, please submit a credit application so we can verify
+              your eligibility and calculate your repayment schedule.
+            </p>
+          )}
 
           {!creditOverview.loanStatus && (
             <div className="mt-5">
