@@ -16,6 +16,7 @@ const scoreChangesAllTime = [
 
 const CreditScorePage = ({ onBack }) => {
   const [view, setView] = useState("today");
+  const showScoreHistory = false;
   const [scoreSnapshot, setScoreSnapshot] = useState({
     score: null,
     delta: null,
@@ -99,7 +100,7 @@ const CreditScorePage = ({ onBack }) => {
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm"
             aria-label="Calendar"
           >
-            📅
+            <i className="fas fa-calendar-alt" aria-hidden="true" />
           </button>
         </header>
 
@@ -154,50 +155,52 @@ const CreditScorePage = ({ onBack }) => {
           </div>
         </CreditMetricCard>
 
-        <CreditMetricCard>
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase text-slate-400">Changes</p>
-            <button
-              type="button"
-              disabled={!hasScore}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                hasScore
-                  ? "bg-slate-100 text-slate-600"
-                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
-              }`}
-            >
-              {hasScore ? "Score history" : "Check Mint score standing"}
-            </button>
-          </div>
-          <div className="mt-4 flex flex-col gap-3">
-            {scoreChanges.length > 0 ? (
-              scoreChanges.map((item) => (
-                <div
-                  key={`${item.label}-${item.date}`}
-                  className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-700">{item.label}</p>
-                    <p className="text-[11px] text-slate-400">{item.date}</p>
-                  </div>
-                  <span
-                    className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                      item.value.startsWith("+")
-                        ? "bg-emerald-100 text-emerald-600"
-                        : "bg-rose-100 text-rose-500"
-                    }`}
+        {showScoreHistory && (
+          <CreditMetricCard>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase text-slate-400">Changes</p>
+              <button
+                type="button"
+                disabled={!hasScore}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  hasScore
+                    ? "bg-slate-100 text-slate-600"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
+              >
+                {hasScore ? "Score history" : "Check Mint score standing"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-col gap-3">
+              {scoreChanges.length > 0 ? (
+                scoreChanges.map((item) => (
+                  <div
+                    key={`${item.label}-${item.date}`}
+                    className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
                   >
-                    {item.value}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-slate-500">
-                No score activity to show yet. Run your Mint score check to unlock insights.
-              </p>
-            )}
-          </div>
-        </CreditMetricCard>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">{item.label}</p>
+                      <p className="text-[11px] text-slate-400">{item.date}</p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        item.value.startsWith("+")
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-rose-100 text-rose-500"
+                      }`}
+                    >
+                      {item.value}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No score activity to show yet. Run your Mint score check to unlock insights.
+                </p>
+              )}
+            </div>
+          </CreditMetricCard>
+        )}
       </div>
     </div>
   );
