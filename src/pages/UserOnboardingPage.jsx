@@ -170,7 +170,9 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
     }
   };
 
-  const sumsubApiBase = import.meta.env.VITE_SUMSUB_API_BASE || "http://localhost:3000";
+  const sumsubApiBase =
+    import.meta.env.VITE_SUMSUB_API_BASE ||
+    (import.meta.env.DEV ? "http://localhost:3000" : "");
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
