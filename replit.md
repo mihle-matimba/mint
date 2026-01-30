@@ -15,14 +15,23 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `PrimaryButton.jsx` - Button component
     - `Preloader.jsx` - Loading animation component
     - `AuthLayout.jsx` - Auth page layout
+    - `NotificationBell.jsx` - Bell icon with unread count badge
   - `lib/` - Utility libraries
     - `supabase.js` - Supabase client initialization
     - `biometrics.js` - Biometric authentication utilities (Face ID/Touch ID)
+    - `NotificationsContext.jsx` - Centralized notifications state management with real-time updates
   - `pages/` - Page components
     - `AuthPage.jsx` - Authentication page
     - `OnboardingPage.jsx` - Welcome/landing page (before login)
     - `UserOnboardingPage.jsx` - Post-signup onboarding page
     - `HomePage.jsx` - Home page after login
+    - `MorePage.jsx` - Profile and menu page with KYC badge and Required Actions
+    - `EditProfilePage.jsx` - Edit profile with phone, DOB, gender, country, city fields
+    - `ProfileDetailsPage.jsx` - View-only profile details page
+    - `SettingsPage.jsx` - Settings with biometrics toggle and change password
+    - `ChangePasswordPage.jsx` - Dedicated page for changing password
+    - `NotificationsPage.jsx` - Full notifications list with swipe-to-delete
+    - `NotificationSettingsPage.jsx` - Notification type preferences toggles
   - `styles/` - CSS styles
     - `auth.css` - iOS-style auth form styling
     - `tailwind.css` - Tailwind configuration
@@ -69,9 +78,39 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Users can choose to enable or skip biometrics
   - When enabled, login shows "Use Face ID" button as alternative to password
   - Account-bound: biometrics are tied to specific user email for security
-  - Toggle switch in More tab to enable/disable biometrics
+  - Toggle switch in Settings page to enable/disable biometrics
   - Green toggle = Face ID enabled, Grey toggle = Face ID disabled
   - Works like native iOS Face ID behavior
+- **Profile Management**:
+  - KYC verification status badge displayed between profile picture and name
+  - Required Actions section showing KYC and Bank verification status
+  - Edit Profile page with editable: phone number, date of birth, gender, country, city
+  - Non-editable fields: First name, Last name, Email (display only)
+  - Profile Details page for view-only profile information
+  - Toast notifications on profile save
+- **Settings Page**:
+  - Enable Biometrics toggle
+  - Change Password option
+  - Biometrics Debug for testing
+- **Menu Structure**:
+  - Profile Details - View-only profile
+  - Settings - Biometrics and password
+  - Help & FAQs
+  - Legal Documentation
+  - Privacy
+  - Subscriptions (formerly My Orders)
+  - Log out
+- **Notifications System**:
+  - Centralized state management via NotificationsProvider context
+  - Real-time updates via Supabase subscription (filtered by user preferences)
+  - Unread count badge on bell icon (synced across all pages)
+  - Notifications grouped by date (Today, Yesterday, This Week, etc.)
+  - Swipe-to-delete individual notifications
+  - "Mark all as read" bulk action
+  - 8 notification types: transaction, security, investment, credit, promo, bank, verification, system
+  - Notification Settings page with toggle controls per type
+  - Welcome notification triggered on first signup (with duplicate prevention)
+  - Preference changes immediately update real-time filtering
 
 ## Development
 The development server runs on port 5000 using Vite.

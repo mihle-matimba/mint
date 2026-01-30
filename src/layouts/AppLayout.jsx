@@ -3,11 +3,17 @@ import Navbar from "../components/Navbar.jsx";
 
 const AppLayout = ({ activeTab, onTabChange, children }) => {
   return (
-    <div className="app-shell min-h-screen bg-white">
-      <main className="app-content pb-[calc(6rem+env(safe-area-inset-bottom))]">
+    <div className="app-shell flex min-h-screen flex-col bg-white overflow-hidden">
+      <main
+        className="app-content flex-1 overflow-y-auto pb-[calc(7rem+env(safe-area-inset-bottom))]"
+      >
         {children}
       </main>
-      <Navbar activeTab={activeTab} setActiveTab={onTabChange} />
+        <Navbar
+          activeTab={activeTab}
+          setActiveTab={onTabChange}
+          className="fixed bottom-0 left-0 w-full z-50"
+        />
     </div>
   );
 };

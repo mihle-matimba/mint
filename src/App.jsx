@@ -5,12 +5,37 @@ import Preloader from "./components/Preloader.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
+import CreditApplyPage from "./pages/CreditApplyPage.jsx";
+import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
+import InvestPage from "./pages/InvestPage.jsx";
+import InvestAmountPage from "./pages/InvestAmountPage.jsx";
+import FactsheetPage from "./pages/FactsheetPage.jsx";
+import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
+import SettingsPage from "./pages/SettingsPage.jsx";
 import TransactPage from "./pages/TransactPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
+import BiometricsDebugPage from "./pages/BiometricsDebugPage.jsx";
+import EditProfilePage from "./pages/EditProfilePage.jsx";
+import NotificationsPage from "./pages/NotificationsPage.jsx";
+import NotificationSettingsPage from "./pages/NotificationSettingsPage.jsx";
+import MintBalancePage from "./pages/MintBalancePage.jsx";
+import MarketsPage from "./pages/MarketsPage.jsx";
+import StockDetailPage from "./pages/StockDetailPage.jsx";
+import NewsArticlePage from "./pages/NewsArticlePage.jsx";
+import { NotificationsProvider, createWelcomeNotification, useNotificationsContext } from "./lib/NotificationsContext.jsx";
+import ActivityPage from "./pages/ActivityPage.jsx";
+import ActionsPage from "./pages/ActionsPage.jsx";
+import WithdrawPage from "./pages/WithdrawPage.jsx";
+import ProfileDetailsPage from "./pages/ProfileDetailsPage.jsx";
+import ChangePasswordPage from "./pages/ChangePasswordPage.jsx";
+import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
+import IdentityCheckPage from "./pages/IdentityCheckPage.jsx";
+import BankLinkPage from "./pages/BankLinkPage.jsx";
+import InvitePage from "./pages/InvitePage.jsx";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -43,6 +68,10 @@ const App = () => {
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [sessionReady, setSessionReady] = useState(false);
+  const [notificationReturnPage, setNotificationReturnPage] = useState("home");
+  const [selectedSecurity, setSelectedSecurity] = useState(null);
+  const [selectedStrategy, setSelectedStrategy] = useState(null);
+  const [selectedArticleId, setSelectedArticleId] = useState(null);
   const recoveryHandled = useRef(false);
   const [hasSession, setHasSession] = useState(false);
 
@@ -198,7 +227,22 @@ const App = () => {
   if (currentPage === "home") {
     return (
       <AppLayout activeTab="home" onTabChange={setCurrentPage}>
-        <HomePage />
+        <HomePage
+          onOpenNotifications={() => {
+            setNotificationReturnPage("home");
+            setCurrentPage("notifications");
+          }}
+          onOpenMintBalance={() => setCurrentPage("mintBalance")}
+          onOpenActivity={() => setCurrentPage("activity")}
+          onOpenActions={() => setCurrentPage("actions")}
+          onOpenInvestments={() => setCurrentPage("investments")}
+          onOpenCredit={() => setCurrentPage("credit")}
+          onOpenCreditApply={() => setCurrentPage("creditApply")}
+          onOpenCreditRepay={() => setCurrentPage("creditRepay")}
+          onOpenInvest={() => setCurrentPage("markets")}
+          onOpenWithdraw={() => setCurrentPage("withdraw")}
+          onOpenSettings={() => setCurrentPage("settings")}
+        />
       </AppLayout>
     );
   }
@@ -206,7 +250,13 @@ const App = () => {
   if (currentPage === "credit") {
     return (
       <AppLayout activeTab="credit" onTabChange={setCurrentPage}>
-        <CreditPage />
+        <CreditPage
+          onOpenNotifications={() => {
+            setNotificationReturnPage("credit");
+            setCurrentPage("notifications");
+          }}
+          onOpenCreditApply={() => setCurrentPage("creditApply")}
+        />
       </AppLayout>
     );
   }
@@ -222,9 +272,112 @@ const App = () => {
   if (currentPage === "investments") {
     return (
       <AppLayout activeTab="investments" onTabChange={setCurrentPage}>
-        <InvestmentsPage />
+        <InvestmentsPage
+          onOpenNotifications={() => {
+            setNotificationReturnPage("investments");
+            setCurrentPage("notifications");
+          }}
+          onOpenInvest={() => setCurrentPage("markets")}
+        />
       </AppLayout>
     );
+  }
+
+  if (currentPage === "invest") {
+    return (
+      <AppLayout activeTab="home" onTabChange={setCurrentPage}>
+        <InvestPage
+          onBack={() => setCurrentPage("home")}
+          onOpenOpenStrategies={() => setCurrentPage("openStrategies")}
+          onOpenMarkets={() => setCurrentPage("markets")}
+        />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "markets") {
+    return (
+      <MarketsPage
+        onBack={() => setCurrentPage("home")}
+        onOpenNotifications={() => {
+          setNotificationReturnPage("markets");
+          setCurrentPage("notifications");
+        }}
+        onOpenStockDetail={(security) => {
+          setSelectedSecurity(security);
+          setCurrentPage("stockDetail");
+        }}
+        onOpenNewsArticle={(articleId) => {
+          setSelectedArticleId(articleId);
+          setCurrentPage("newsArticle");
+        }}
+        onOpenFactsheet={(strategy) => {
+          setSelectedStrategy(strategy);
+          setCurrentPage("factsheet");
+        }}
+      />
+    );
+  }
+
+  if (currentPage === "stockDetail") {
+    return (
+      <StockDetailPage
+        security={selectedSecurity}
+        onBack={() => setCurrentPage("markets")}
+      />
+    );
+  }
+
+  if (currentPage === "newsArticle") {
+    return (
+      <NewsArticlePage
+        articleId={selectedArticleId}
+        onBack={() => setCurrentPage("markets")}
+      />
+    );
+  }
+
+  if (currentPage === "openStrategies") {
+    return (
+      <OpenStrategiesPage
+        onBack={() => setCurrentPage("invest")}
+        onOpenFactsheet={(strategy) => {
+          setSelectedStrategy(strategy);
+          setCurrentPage("factsheet");
+        }}
+      />
+    );
+  }
+
+  if (currentPage === "factsheet") {
+    return (
+      <FactsheetPage 
+        onBack={() => setCurrentPage("openStrategies")} 
+        strategy={selectedStrategy}
+        onOpenInvest={(strategy) => {
+          setSelectedStrategy(strategy);
+          setCurrentPage("investAmount");
+        }}
+      />
+    );
+  }
+
+  if (currentPage === "investAmount") {
+    return (
+      <InvestAmountPage
+        onBack={() => setCurrentPage("factsheet")}
+        strategy={selectedStrategy}
+        onContinue={(amount) => {
+          // Redirect to Paystack in new browser window
+          const paystackUrl = `https://checkout.paystack.com/YOUR_PUBLIC_KEY?amount=${Math.round(amount * 100)}&email=user@example.com&ref=${Date.now()}`;
+          window.open(paystackUrl, "_blank");
+        }}
+      />
+    );
+  }
+
+  if (currentPage === "withdraw") {
+    return <WithdrawPage />;
   }
 
   if (currentPage === "more") {
@@ -235,9 +388,129 @@ const App = () => {
     );
   }
 
+  if (currentPage === "settings") {
+    return (
+      <AppLayout activeTab="more" onTabChange={setCurrentPage}>
+        <SettingsPage onNavigate={setCurrentPage} />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "biometricsDebug") {
+    return (
+      <AppLayout activeTab="more" onTabChange={setCurrentPage}>
+        <BiometricsDebugPage onNavigate={setCurrentPage} />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "editProfile") {
+    return <EditProfilePage onNavigate={setCurrentPage} />;
+  }
+
+  if (currentPage === "profileDetails") {
+    return <ProfileDetailsPage onNavigate={setCurrentPage} />;
+  }
+
+  if (currentPage === "notifications") {
+    return (
+      <NotificationsPage
+        onBack={() => setCurrentPage(notificationReturnPage)}
+        onOpenSettings={() => setCurrentPage("notificationSettings")}
+      />
+    );
+  }
+
+  if (currentPage === "notificationSettings") {
+    return <NotificationSettingsPage onBack={() => setCurrentPage("notifications")} />;
+  }
+
+  if (currentPage === "mintBalance") {
+    return (
+      <AppLayout activeTab="home" onTabChange={setCurrentPage}>
+        <MintBalancePage
+          onBack={() => setCurrentPage("home")}
+          onOpenInvestments={() => setCurrentPage("investments")}
+          onOpenCredit={() => setCurrentPage("credit")}
+          onOpenActivity={() => setCurrentPage("activity")}
+          onOpenSettings={() => setCurrentPage("settings")}
+          onOpenInvest={() => setCurrentPage("markets")}
+          onOpenCreditApply={() => setCurrentPage("credit")}
+        />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "activity") {
+    return (
+      <AppLayout activeTab="home" onTabChange={setCurrentPage}>
+        <ActivityPage onBack={() => setCurrentPage("mintBalance")} />
+      </AppLayout>
+    );
+  }
+
+  if (currentPage === "actions") {
+    return (
+      <ActionsPage
+        onBack={() => setCurrentPage("home")}
+        onNavigate={setCurrentPage}
+      />
+    );
+  }
+
+  if (currentPage === "identityCheck") {
+    return <IdentityCheckPage onBack={() => setCurrentPage("actions")} />;
+  }
+
+  if (currentPage === "bankLink") {
+    return <BankLinkPage onBack={() => setCurrentPage("actions")} />;
+  }
+
+  if (currentPage === "invite") {
+    return <InvitePage onBack={() => setCurrentPage("actions")} />;
+  }
+
+  if (currentPage === "creditApply") {
+    return <CreditApplyPage />;
+  }
+
+  if (currentPage === "creditRepay") {
+    return <CreditRepayPage />;
+  }
+
+  if (currentPage === "changePassword") {
+    return <ChangePasswordPage onNavigate={setCurrentPage} />;
+  }
+
+  if (currentPage === "legal") {
+    return <LegalDocumentationPage onNavigate={setCurrentPage} />;
+  }
+
   if (currentPage === "userOnboarding") {
     return <UserOnboardingPage onComplete={() => setCurrentPage("home")} />;
   }
+
+  const handleSignupComplete = async () => {
+    if (supabase) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        await createWelcomeNotification(userData.user.id);
+        await refetchNotifications();
+      }
+    }
+    setCurrentPage("userOnboarding");
+  };
+
+  const handleLoginComplete = async () => {
+    if (supabase) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        await createWelcomeNotification(userData.user.id);
+        await refetchNotifications();
+      }
+    }
+    setCurrentPage("home");
+  };
 
   return (
     <AuthPage

@@ -1,4 +1,4 @@
-modules = ["nodejs-20", "web", "swift-5.8"]
+modules = ["nodejs-20", "web", "swift-5.8", "java-graalvm22.3", "postgresql-16"]
 [agent]
 expertMode = true
 
@@ -41,3 +41,8 @@ externalPort = 3000
 deploymentTarget = "static"
 build = ["npm", "run", "build"]
 publicDir = "dist"
+
+[userenv]
+
+[userenv.shared]
+VITE_API_KEY = "${API_KEY}"
