@@ -289,6 +289,34 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             />
           </div>
         </CreditMetricCard>
+
+        <div className="pt-2 text-xs text-slate-400">
+          <details className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-slate-500">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[11px] font-semibold">
+                i
+              </span>
+              <span>Important information about credit limits and scores</span>
+            </summary>
+            <div className="mt-3 space-y-2 text-slate-500">
+              <p>
+                Your loan limit is based on affordability and cash‑flow stability. We calculate net income as income
+                minus expenses, then use 20% of that net income as a starting point for a responsible limit. We also
+                review recurring income patterns, essential spend, existing obligations, and repayment behavior to
+                avoid over‑extension.
+              </p>
+              <p>
+                The Mint score is produced by our loan engine and looks at multiple factors, including repayment
+                history, credit utilization, account age and stability, recent credit activity, income consistency,
+                cash‑flow volatility, and debt‑to‑income signals. These checks help us understand risk and ensure the
+                score reflects your current financial position.
+              </p>
+              <p>
+                Experian and TruID provide the data sources used to generate these insights.
+              </p>
+            </div>
+          </details>
+        </div>
       </div>
     </div>
   );
