@@ -258,7 +258,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             <div className="mt-5">
               <div className="h-2 w-full rounded-full bg-slate-100">
                 <div
-                  className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-emerald-300"
+                  className="h-2 rounded-full bg-slate-200"
                   style={{ width: utilisationWidth }}
                 />
               </div>
