@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { CreditCard } from "lucide-react";
 import CreditMetricCard from "../components/credit/CreditMetricCard.jsx";
 import CreditActionGrid from "../components/credit/CreditActionGrid.jsx";
 import CreditScorePage from "./CreditScorePage.jsx";
 import { supabase } from "../lib/supabase.js";
 import { formatZar } from "../lib/formatCurrency";
 import { useProfile } from "../lib/useProfile";
+import { useCreditInfo } from "../lib/useFinancialData";
 import CreditSkeleton from "../components/CreditSkeleton";
 import NotificationBell from "../components/NotificationBell";
 
@@ -12,9 +14,9 @@ const defaultCreditOverview = {
   availableCredit: null,
   score: null,
   updatedAt: "Please run your credit check",
-  loanBalance: "R8,450",
-  nextPaymentDate: "May 30, 2024",
-  minDue: "R950",
+  loanBalance: null,
+  nextPaymentDate: null,
+  minDue: null,
   utilisationPercent: 62,
 };
 
@@ -24,6 +26,19 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   );
   const [creditOverview, setCreditOverview] = useState(defaultCreditOverview);
   const { profile, loading } = useProfile();
+  const {
+    availableCredit,
+    score,
+    loanBalance,
+    nextPaymentDate,
+    minDue,
+    utilisationPercent,
+    scoreChangesToday,
+    scoreChangesAllTime,
+    loading: creditLoading,
+    hasCredit,
+  } = useCreditInfo();
+
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
@@ -103,6 +118,9 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
         } else {
           next.loanStatus = null;
           next.amountRepayable = null;
+          next.loanBalance = null;
+          next.nextPaymentDate = null;
+          next.minDue = null;
         }
 
         return next;
@@ -119,16 +137,30 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   };
 
   if (view === "score") {
-    return <CreditScorePage onBack={() => navigate("overview")} />;
+    return <CreditScorePage onBack={() => navigate("overview")} scoreChangesToday={scoreChangesToday} scoreChangesAllTime={scoreChangesAllTime} currentScore={score} />;
   }
 
-  if (loading) {
+  if (loading || creditLoading) {
     return <CreditSkeleton />;
   }
 
   const utilisationWidth = `${creditOverview.utilisationPercent}%`;
   const hasScore = Number.isFinite(creditOverview.score) && creditOverview.score > 0;
   const hasAvailableCredit = Boolean(creditOverview.availableCredit);
+  const hasLoanDetails = Boolean(
+    creditOverview.loanStatus
+    || creditOverview.loanBalance
+    || creditOverview.nextPaymentDate
+    || creditOverview.minDue
+    || creditOverview.amountRepayable
+  );
+  const standingInfo = hasScore
+    ? creditOverview.score >= 80
+      ? { label: "Good standing", className: "bg-emerald-400/20 text-emerald-100" }
+      : creditOverview.score >= 60
+        ? { label: "Moderate standing", className: "bg-amber-400/20 text-amber-100" }
+        : { label: "Bad standing", className: "bg-rose-400/20 text-rose-100" }
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
@@ -154,11 +186,15 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
           <section className="rounded-3xl bg-white/10 p-5 shadow-sm backdrop-blur">
             <p className="text-xs uppercase tracking-[0.2em] text-white/70">Available Credit</p>
             <p className="mt-3 text-3xl font-semibold">
-              {hasAvailableCredit ? creditOverview.availableCredit : "Coming soon"}
+              {hasAvailableCredit ? creditOverview.availableCredit : "Engine score not initiated"}
             </p>
-            <div className="mt-4 inline-flex items-center rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-100">
-              Good standing
-            </div>
+            {standingInfo && (
+              <div
+                className={`mt-4 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${standingInfo.className}`}
+              >
+                {standingInfo.label}
+              </div>
+            )}
           </section>
         </div>
       </div>
@@ -178,9 +214,14 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             <button
               type="button"
               onClick={() => navigate("score")}
-              className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white"
+              disabled={!hasScore}
+              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] ${
+                hasScore
+                  ? "bg-slate-900 text-white"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
             >
-              {hasScore ? "View score" : "Run credit check"}
+              View Mint score
             </button>
           </div>
         </CreditMetricCard>
@@ -199,30 +240,45 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             )}
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-xs text-slate-400">Principal amount</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.loanBalance}</p>
+          {hasLoanDetails ? (
+            <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+              {creditOverview.loanBalance && (
+                <div>
+                  <p className="text-xs text-slate-400">Principal amount</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.loanBalance}</p>
+                </div>
+              )}
+              {creditOverview.nextPaymentDate && (
+                <div>
+                  <p className="text-xs text-slate-400">First repayment date</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.nextPaymentDate}</p>
+                </div>
+              )}
+              {creditOverview.minDue && (
+                <div>
+                  <p className="text-xs text-slate-400">Monthly repayable</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.minDue}</p>
+                </div>
+              )}
+              {creditOverview.amountRepayable && (
+                <div>
+                  <p className="text-xs text-slate-400">Amount repayable</p>
+                  <p className="mt-1 font-semibold text-slate-800">{creditOverview.amountRepayable}</p>
+                </div>
+              )}
             </div>
-            <div>
-              <p className="text-xs text-slate-400">First repayment date</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.nextPaymentDate}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Monthly repayable</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.minDue}</p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-400">Amount repayable</p>
-              <p className="mt-1 font-semibold text-slate-800">{creditOverview.amountRepayable || "—"}</p>
-            </div>
-          </div>
+          ) : (
+            <p className="mt-5 text-sm text-slate-500">
+              To view detailed loan information, please submit a credit application so we can verify
+              your eligibility and calculate your repayment schedule.
+            </p>
+          )}
 
           {!creditOverview.loanStatus && (
             <div className="mt-5">
               <div className="h-2 w-full rounded-full bg-slate-100">
                 <div
-                  className="h-2 rounded-full bg-gradient-to-r from-purple-500 to-emerald-300"
+                  className="h-2 rounded-full bg-slate-200"
                   style={{ width: utilisationWidth }}
                 />
               </div>
@@ -241,14 +297,6 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
                   onClick: () => onOpenTruID ? onOpenTruID() : console.log("Apply for credit"),
                 },
                 {
-                  label: "Upload bank statements",
-                  onClick: () => onOpenCreditStep2 ? onOpenCreditStep2() : console.log("Upload bank statements"),
-                },
-                {
-                  label: "Verify identity",
-                  onClick: () => console.log("Verify identity"),
-                },
-                {
                   label: "Pay loan",
                   onClick: () => console.log("Pay loan"),
                 },
@@ -256,6 +304,34 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             />
           </div>
         </CreditMetricCard>
+
+        <div className="pt-2 text-xs text-slate-400">
+          <details className="rounded-2xl bg-white px-4 py-3 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-slate-500">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-[11px] font-semibold">
+                i
+              </span>
+              <span>Important information about credit limits and scores</span>
+            </summary>
+            <div className="mt-3 space-y-2 text-slate-500">
+              <p>
+                Your loan limit is based on affordability and cash‑flow stability. We calculate net income as income
+                minus expenses, then use 20% of that net income as a starting point for a responsible limit. We also
+                review recurring income patterns, essential spend, existing obligations, and repayment behavior to
+                avoid over‑extension.
+              </p>
+              <p>
+                The Mint score is produced by our loan engine and looks at multiple factors, including repayment
+                history, credit utilization, account age and stability, recent credit activity, income consistency,
+                cash‑flow volatility, and debt‑to‑income signals. These checks help us understand risk and ensure the
+                score reflects your current financial position.
+              </p>
+              <p>
+                Experian and TruID provide the data sources used to generate these insights.
+              </p>
+            </div>
+          </details>
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import CreditMetricCard from "../components/credit/CreditMetricCard.jsx";
-
-const baseScore = 732;
+import { supabase } from "../lib/supabase.js";
 
 const scoreChangesToday = [
   { label: "Credit utilisation", date: "Apr 14", value: "+4" },
@@ -17,17 +16,71 @@ const scoreChangesAllTime = [
 
 const CreditScorePage = ({ onBack }) => {
   const [view, setView] = useState("today");
+  const showScoreHistory = false;
+  const [scoreSnapshot, setScoreSnapshot] = useState({
+    score: null,
+    delta: null,
+    updatedAt: null,
+  });
 
-  const scoreChanges = view === "today" ? scoreChangesToday : scoreChangesAllTime;
+  useEffect(() => {
+    const loadScore = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
 
-  const scoreDelta = view === "today" ? "+4 pts" : "+12 pts";
+      const { data: scoreRows } = await supabase
+        .from("loan_engine_score")
+        .select("engine_score,run_at")
+        .eq("user_id", userId)
+        .order("run_at", { ascending: false })
+        .limit(2);
+
+      if (!Array.isArray(scoreRows) || scoreRows.length === 0) return;
+
+      const [latest, previous] = scoreRows;
+      const latestScore = Number(latest?.engine_score);
+      const prevScore = Number(previous?.engine_score);
+      const nextSnapshot = {
+        score: Number.isFinite(latestScore) ? latestScore : null,
+        delta: Number.isFinite(latestScore) && Number.isFinite(prevScore)
+          ? latestScore - prevScore
+          : null,
+        updatedAt: latest?.run_at || null,
+      };
+
+      setScoreSnapshot(nextSnapshot);
+    };
+
+    loadScore();
+  }, []);
+
+  const hasScore = Number.isFinite(scoreSnapshot.score) && scoreSnapshot.score > 0;
+  const scoreChanges = hasScore
+    ? view === "today"
+      ? scoreChangesToday
+      : scoreChangesAllTime
+    : [];
+
+  const scoreDelta = hasScore && scoreSnapshot.delta !== null
+    ? `${scoreSnapshot.delta > 0 ? "+" : ""}${Math.round(scoreSnapshot.delta)} pts`
+    : "—";
+  const updatedLabel = hasScore && scoreSnapshot.updatedAt
+    ? `Updated ${new Date(scoreSnapshot.updatedAt).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })}`
+    : "No score data yet";
 
   const markerPosition = useMemo(() => {
     const min = 300;
     const max = 1000;
-    const percent = ((baseScore - min) / (max - min)) * 100;
+    if (!hasScore) return 0;
+    const percent = ((scoreSnapshot.score - min) / (max - min)) * 100;
     return Math.min(Math.max(percent, 0), 100);
-  }, []);
+  }, [hasScore, scoreSnapshot.score]);
 
   return (
     <div className="min-h-screen bg-slate-50 px-4 pb-[env(safe-area-inset-bottom)] pt-10 text-slate-900 md:px-8">
@@ -47,7 +100,7 @@ const CreditScorePage = ({ onBack }) => {
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm"
             aria-label="Calendar"
           >
-            📅
+            <i className="fas fa-calendar-alt" aria-hidden="true" />
           </button>
         </header>
 
@@ -75,7 +128,7 @@ const CreditScorePage = ({ onBack }) => {
         <CreditMetricCard className="flex flex-col items-center gap-4 text-center">
           <div className="flex items-center gap-3">
             <div className="text-[88px] font-light leading-none tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-indigo-400">
-              {baseScore}
+              {hasScore ? Math.round(scoreSnapshot.score) : "—"}
             </div>
             <span className="rounded-full border border-slate-100 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
               {scoreDelta}
@@ -85,56 +138,57 @@ const CreditScorePage = ({ onBack }) => {
           <div className="w-full">
             <div className="flex items-center justify-between text-[11px] text-slate-400">
               <span>TransUnion</span>
-              <span>Updated today</span>
+              <span>{updatedLabel}</span>
             </div>
-            <div className="relative mt-3 h-3 w-full rounded-full bg-gradient-to-r from-purple-500 via-indigo-400 to-emerald-300">
-              <div
-                className="absolute -top-1 h-5 w-1.5 rounded-full bg-white shadow"
-                style={{ left: `calc(${markerPosition}% - 3px)` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-              <span>300</span>
-              <span>630</span>
-              <span>690</span>
-              <span>1000</span>
-            </div>
-          </div>
+          )}
         </CreditMetricCard>
 
-        <CreditMetricCard>
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase text-slate-400">Changes</p>
-            <button
-              type="button"
-              className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600"
-            >
-              Score history
-            </button>
-          </div>
-          <div className="mt-4 flex flex-col gap-3">
-            {scoreChanges.map((item) => (
-              <div
-                key={`${item.label}-${item.date}`}
-                className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
+        {showScoreHistory && (
+          <CreditMetricCard>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase text-slate-400">Changes</p>
+              <button
+                type="button"
+                disabled={!hasScore}
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  hasScore
+                    ? "bg-slate-100 text-slate-600"
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
               >
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{item.label}</p>
-                  <p className="text-[11px] text-slate-400">{item.date}</p>
-                </div>
-                <span
-                  className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                    item.value.startsWith("+")
-                      ? "bg-emerald-100 text-emerald-600"
-                      : "bg-rose-100 text-rose-500"
-                  }`}
-                >
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </CreditMetricCard>
+                {hasScore ? "Score history" : "Check Mint score standing"}
+              </button>
+            </div>
+            <div className="mt-4 flex flex-col gap-3">
+              {scoreChanges.length > 0 ? (
+                scoreChanges.map((item) => (
+                  <div
+                    key={`${item.label}-${item.date}`}
+                    className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">{item.label}</p>
+                      <p className="text-[11px] text-slate-400">{item.date}</p>
+                    </div>
+                    <span
+                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                        item.value.startsWith("+")
+                          ? "bg-emerald-100 text-emerald-600"
+                          : "bg-rose-100 text-rose-500"
+                      }`}
+                    >
+                      {item.value}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-500">
+                  No score activity to show yet. Run your Mint score check to unlock insights.
+                </p>
+              )}
+            </div>
+          </CreditMetricCard>
+        )}
       </div>
     </div>
   );
