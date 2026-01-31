@@ -140,19 +140,7 @@ const CreditScorePage = ({ onBack }) => {
               <span>TransUnion</span>
               <span>{updatedLabel}</span>
             </div>
-            <div className="relative mt-3 h-3 w-full rounded-full bg-gradient-to-r from-purple-500 via-indigo-400 to-emerald-300">
-              <div
-                className="absolute -top-1 h-5 w-1.5 rounded-full bg-white shadow"
-                style={{ left: `calc(${markerPosition}% - 3px)` }}
-              />
-            </div>
-            <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-              <span>300</span>
-              <span>630</span>
-              <span>690</span>
-              <span>1000</span>
-            </div>
-          </div>
+          )}
         </CreditMetricCard>
 
         {showScoreHistory && (

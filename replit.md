@@ -16,6 +16,7 @@ A React authentication application using Vite as the build tool with Tailwind CS
     - `Preloader.jsx` - Loading animation component
     - `AuthLayout.jsx` - Auth page layout
     - `NotificationBell.jsx` - Bell icon with unread count badge
+    - `TruidConnector.jsx` - TruID Connect integration for identity verification
   - `lib/` - Utility libraries
     - `supabase.js` - Supabase client initialization
     - `biometrics.js` - Biometric authentication utilities (Face ID/Touch ID)
@@ -23,7 +24,8 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - `pages/` - Page components
     - `AuthPage.jsx` - Authentication page
     - `OnboardingPage.jsx` - Welcome/landing page (before login)
-    - `UserOnboardingPage.jsx` - Post-signup onboarding page
+    - `UserOnboardingPage.jsx` - User identification onboarding flow (3-step process)
+    - `IdentityCheckPage.jsx` - Identity verification page (wraps UserOnboardingPage)
     - `HomePage.jsx` - Home page after login
     - `MorePage.jsx` - Profile and menu page with KYC badge and Required Actions
     - `EditProfilePage.jsx` - Edit profile with phone, DOB, gender, country, city fields
@@ -35,7 +37,11 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - `styles/` - CSS styles
     - `auth.css` - iOS-style auth form styling
     - `tailwind.css` - Tailwind configuration
+    - `onboarding-process.css` - Onboarding flow glassmorphism styling
 - `public/` - Static assets
+- `server/` - Backend API server
+  - `index.cjs` - Express server with TruID API routes
+  - `truidClient.cjs` - TruID API client with authentication
 - `index.html` - HTML entry point
 
 ## Features
@@ -100,6 +106,21 @@ A React authentication application using Vite as the build tool with Tailwind CS
   - Privacy
   - Subscriptions (formerly My Orders)
   - Log out
+- **User Identification Onboarding Flow**:
+  - 3-step verification process triggered from Actions page
+  - Step 1: Employment details (status, employer, income)
+  - Step 2: Identity verification via TruID Connect
+  - Step 3: Terms & Conditions and Privacy Policy agreements
+  - Saves onboarding data to Supabase `user_onboarding` table
+  - TruID integration for KYC verification with status checking
+  - Backend API server on port 3001 for TruID API calls
+  - Glassmorphism UI with smooth animations
+- **TruID Integration**:
+  - Backend: `server/index.cjs` - Express server with TruID API endpoints
+  - Client: `server/truidClient.cjs` - TruID API client with authentication
+  - Frontend: `src/components/TruidConnector.jsx` - Verification UI component
+  - Endpoints: POST `/api/truid/initiate`, GET `/api/truid/status`
+  - Environment variables: TRUID_API_KEY, BRAND_ID, COMPANY_ID, TRUID_API_BASE, TRUID_DOMAIN, REDIRECT_URL, WEBHOOK_URL
 - **Notifications System**:
   - Centralized state management via NotificationsProvider context
   - Real-time updates via Supabase subscription (filtered by user preferences)
@@ -134,3 +155,6 @@ This project is configured for static deployment. The build output goes to the `
 - PostCSS with Autoprefixer
 - Capacitor (for native mobile features)
 - capacitor-face-id (biometric authentication)
+- Express.js (backend API server)
+- Axios (HTTP client for TruID API)
+- TruID Connect (identity verification)

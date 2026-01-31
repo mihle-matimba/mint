@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { CreditCard } from "lucide-react";
 import CreditMetricCard from "../components/credit/CreditMetricCard.jsx";
 import CreditActionGrid from "../components/credit/CreditActionGrid.jsx";
 import CreditScorePage from "./CreditScorePage.jsx";
 import { supabase } from "../lib/supabase.js";
 import { formatZar } from "../lib/formatCurrency";
 import { useProfile } from "../lib/useProfile";
+import { useCreditInfo } from "../lib/useFinancialData";
 import CreditSkeleton from "../components/CreditSkeleton";
 import NotificationBell from "../components/NotificationBell";
 
@@ -24,6 +26,19 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   );
   const [creditOverview, setCreditOverview] = useState(defaultCreditOverview);
   const { profile, loading } = useProfile();
+  const {
+    availableCredit,
+    score,
+    loanBalance,
+    nextPaymentDate,
+    minDue,
+    utilisationPercent,
+    scoreChangesToday,
+    scoreChangesAllTime,
+    loading: creditLoading,
+    hasCredit,
+  } = useCreditInfo();
+
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
@@ -122,10 +137,10 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
   };
 
   if (view === "score") {
-    return <CreditScorePage onBack={() => navigate("overview")} />;
+    return <CreditScorePage onBack={() => navigate("overview")} scoreChangesToday={scoreChangesToday} scoreChangesAllTime={scoreChangesAllTime} currentScore={score} />;
   }
 
-  if (loading) {
+  if (loading || creditLoading) {
     return <CreditSkeleton />;
   }
 

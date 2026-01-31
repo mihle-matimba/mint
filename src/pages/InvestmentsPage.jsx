@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { TrendingUp } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
+import { useInvestments } from "../lib/useFinancialData";
+import { supabase } from "../lib/supabase";
 import InvestmentsSkeleton from "../components/InvestmentsSkeleton";
 import NotificationBell from "../components/NotificationBell";
 
-const InvestmentsPage = ({ onOpenNotifications }) => {
+const InvestmentsPage = ({ onOpenNotifications, onOpenInvest }) => {
   const { profile, loading } = useProfile();
   const investmentSummary = null;
   const portfolioMix = [];
@@ -21,9 +24,76 @@ const InvestmentsPage = ({ onOpenNotifications }) => {
     .join("")
     .toUpperCase();
 
-  if (loading) {
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAllocations = async () => {
+      try {
+        if (!supabase) {
+          return;
+        }
+
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        if (userError || !userData?.user) {
+          return;
+        }
+
+        const { data, error: allocationsError } = await supabase
+          .from("allocations")
+          .select("id, asset_class, weight, value, as_of_date")
+          .eq("user_id", userData.user.id)
+          .order("as_of_date", { ascending: false });
+
+        if (isMounted && !allocationsError) {
+          setAllocations(data || []);
+        }
+      } catch (error) {
+        console.error("Failed to load allocations", error);
+      }
+    };
+
+    loadAllocations();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (loading || investmentsLoading) {
     return <InvestmentsSkeleton />;
   }
+
+  const defaultPortfolioMix = [
+    { label: "Equities", value: "0%" },
+    { label: "Fixed income", value: "0%" },
+    { label: "Crypto", value: "0%" },
+    { label: "Cash", value: "0%" },
+  ];
+
+  const displayPortfolioMix = portfolioMix.length > 0 ? portfolioMix : defaultPortfolioMix;
+  const hasAllocations = allocations.length > 0;
+  const displayGoals = [...goals, ...customGoals];
+  const handleAddGoal = (event) => {
+    event.preventDefault();
+    if (!goalName || !goalTarget || !goalDate) return;
+    const formattedTarget = `Target R${Number(goalTarget).toLocaleString()}`;
+    const formattedDate = new Date(goalDate).toLocaleDateString("en-ZA", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+    setCustomGoals((prev) => [
+      ...prev,
+      {
+        label: goalName,
+        progress: "0%",
+        value: `${formattedTarget} • ${formattedDate}`,
+      },
+    ]);
+    setGoalName("");
+    setGoalTarget("");
+    setGoalDate("");
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 pb-[env(safe-area-inset-bottom)] text-slate-900">
