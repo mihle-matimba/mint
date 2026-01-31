@@ -18,9 +18,13 @@ const getSupabaseClient = () => {
   } catch {
     return null;
   }
-  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-    auth: { persistSession: false },
-  });
+  try {
+    return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+      auth: { persistSession: false },
+    });
+  } catch {
+    return null;
+  }
 };
 
 const isUuid = (value) =>
@@ -170,18 +174,22 @@ export default async function handler(req, res) {
     const supabase = getSupabaseClient();
 
     if (supabase && isUuid(bodyUserId)) {
-      const { data: existing } = await supabase
-        .from("user_onboarding")
-        .select("sumsub_external_user_id, sumsub_applicant_id")
-        .eq("user_id", bodyUserId)
-        .maybeSingle();
+      try {
+        const { data: existing } = await supabase
+          .from("user_onboarding")
+          .select("sumsub_external_user_id, sumsub_applicant_id")
+          .eq("user_id", bodyUserId)
+          .maybeSingle();
 
-      if (existing?.sumsub_external_user_id) {
-        externalUserId = existing.sumsub_external_user_id;
-      }
+        if (existing?.sumsub_external_user_id) {
+          externalUserId = existing.sumsub_external_user_id;
+        }
 
-      if (existing?.sumsub_applicant_id) {
-        applicantId = existing.sumsub_applicant_id;
+        if (existing?.sumsub_applicant_id) {
+          applicantId = existing.sumsub_applicant_id;
+        }
+      } catch (error) {
+        console.warn("Supabase lookup failed:", error?.message || error);
       }
     }
 
@@ -208,16 +216,20 @@ export default async function handler(req, res) {
     const websdkUrl = websdk?.url || websdk?.link || websdk?.href || websdk;
 
     if (supabase && applicantId && websdkUrl && isUuid(bodyUserId)) {
-      await supabase
-        .from("user_onboarding")
-        .upsert({
-          user_id: bodyUserId,
-          sumsub_external_user_id: externalUserId,
-          sumsub_applicant_id: applicantId,
-          sumsub_websdk_url: websdkUrl,
-          kyc_status: "pending",
-          kyc_checked_at: new Date().toISOString(),
-        }, { onConflict: "user_id" });
+      try {
+        await supabase
+          .from("user_onboarding")
+          .upsert({
+            user_id: bodyUserId,
+            sumsub_external_user_id: externalUserId,
+            sumsub_applicant_id: applicantId,
+            sumsub_websdk_url: websdkUrl,
+            kyc_status: "pending",
+            kyc_checked_at: new Date().toISOString(),
+          }, { onConflict: "user_id" });
+      } catch (error) {
+        console.warn("Supabase upsert failed:", error?.message || error);
+      }
     }
 
     return sendJson(
