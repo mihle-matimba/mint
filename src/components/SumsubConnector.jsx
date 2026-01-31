@@ -159,6 +159,7 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
   );
   const [websdkUrl, setWebsdkUrl] = useState("");
   const [applicantId, setApplicantId] = useState("");
+  const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
   const [verificationStatus, setVerificationStatus] = useState("idle");
   const [verificationMessage, setVerificationMessage] = useState("");
@@ -199,12 +200,18 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
 
     try {
       let externalUserId = localStorage.getItem(LOCAL_STORAGE_KEYS.externalUserId);
+      let resolvedUserId = userId;
 
-      if (!externalUserId && supabase) {
+      if (supabase && !resolvedUserId) {
         const { data } = await supabase.auth.getUser();
         if (data?.user?.id) {
-          externalUserId = data.user.id;
+          resolvedUserId = data.user.id;
+          setUserId(data.user.id);
         }
+      }
+
+      if (!externalUserId && resolvedUserId) {
+        externalUserId = resolvedUserId;
       }
 
       if (!externalUserId) {
@@ -215,7 +222,7 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
       const resp = await fetch(initEndpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ externalUserId }),
+        body: JSON.stringify({ externalUserId, userId: resolvedUserId || undefined }),
       });
 
       const payload = await resp.json();

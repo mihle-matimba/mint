@@ -23,6 +23,10 @@ const getSupabaseClient = () => {
   });
 };
 
+const isUuid = (value) =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 const corsOrigin = (req) => {
   const requestOrigin = req.headers.origin;
   const configured = (process.env.CORS_ORIGIN || "*").trim();
@@ -157,18 +161,19 @@ export default async function handler(req, res) {
     const body = normalizeBody(req.body);
     const levelName = body.levelName || DEFAULT_LEVEL;
     const ttlInSecs = Number(body.ttlInSecs) || DEFAULT_TTL;
-    let externalUserId = (body.externalUserId || `mint-${crypto.randomUUID()}`)
+    const bodyUserId = body.userId?.toString().trim();
+    let externalUserId = (body.externalUserId || bodyUserId || `mint-${crypto.randomUUID()}`)
       .toString()
       .trim();
 
     let applicantId = null;
     const supabase = getSupabaseClient();
 
-    if (supabase) {
+    if (supabase && isUuid(bodyUserId)) {
       const { data: existing } = await supabase
         .from("user_onboarding")
         .select("sumsub_external_user_id, sumsub_applicant_id")
-        .eq("user_id", externalUserId)
+        .eq("user_id", bodyUserId)
         .maybeSingle();
 
       if (existing?.sumsub_external_user_id) {
@@ -202,11 +207,11 @@ export default async function handler(req, res) {
 
     const websdkUrl = websdk?.url || websdk?.link || websdk?.href || websdk;
 
-    if (supabase && applicantId && websdkUrl) {
+    if (supabase && applicantId && websdkUrl && isUuid(bodyUserId)) {
       await supabase
         .from("user_onboarding")
         .upsert({
-          user_id: externalUserId,
+          user_id: bodyUserId,
           sumsub_external_user_id: externalUserId,
           sumsub_applicant_id: applicantId,
           sumsub_websdk_url: websdkUrl,
