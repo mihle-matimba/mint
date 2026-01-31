@@ -83,6 +83,12 @@ const call = async (method, path, { query = {}, data, headers = {} } = {}) => {
   return res.data;
 };
 
+const getApplicantByExternalUserId = async (externalUserId) => {
+  const path = "/resources/applicants";
+  const query = { externalUserId };
+  return call("GET", path, { query });
+};
+
 const deriveOutcome = (reviewStatus, reviewAnswer) => {
   if (reviewStatus === "completed") {
     if (reviewAnswer === "GREEN") return "completed";
@@ -111,13 +117,28 @@ export default async function handler(req, res) {
     return sendJson(res, 405, { success: false, error: { message: "Method not allowed" } }, origin);
   }
 
-  const { applicantId } = req.query || {};
+  const { applicantId, externalUserId } = req.query || {};
   if (!applicantId) {
     return sendJson(res, 400, { success: false, error: { message: "Missing applicantId" } }, origin);
   }
 
   try {
-    const applicant = await call("GET", `/resources/applicants/${encodeURIComponent(applicantId)}/one`);
+    let resolvedApplicantId = applicantId;
+    if (applicantId === "external") {
+      if (!externalUserId) {
+        return sendJson(res, 400, { success: false, error: { message: "Missing externalUserId" } }, origin);
+      }
+      const existing = await getApplicantByExternalUserId(externalUserId);
+      const record = Array.isArray(existing)
+        ? existing[0]
+        : existing?.items?.[0] || existing?.list?.[0];
+      resolvedApplicantId = record?.id || record?.applicantId || record?.applicant?.id;
+      if (!resolvedApplicantId) {
+        return sendJson(res, 404, { success: false, error: { message: "Applicant not found" } }, origin);
+      }
+    }
+
+    const applicant = await call("GET", `/resources/applicants/${encodeURIComponent(resolvedApplicantId)}/one`);
     const reviewStatus = applicant?.review?.reviewStatus || applicant?.reviewStatus || "unknown";
     const reviewAnswer = applicant?.review?.reviewResult?.reviewAnswer || applicant?.reviewResult?.reviewAnswer || "unknown";
     const outcome = deriveOutcome(reviewStatus, reviewAnswer);
@@ -128,7 +149,7 @@ export default async function handler(req, res) {
       {
         success: true,
         data: {
-          applicantId,
+          applicantId: resolvedApplicantId,
           reviewStatus,
           reviewAnswer,
           outcome,

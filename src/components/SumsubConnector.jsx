@@ -159,6 +159,7 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
   );
   const [websdkUrl, setWebsdkUrl] = useState("");
   const [applicantId, setApplicantId] = useState("");
+  const [externalUserId, setExternalUserId] = useState("");
   const [userId, setUserId] = useState("");
   const [error, setError] = useState("");
   const [verificationStatus, setVerificationStatus] = useState("idle");
@@ -180,8 +181,10 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const storedExternalId = localStorage.getItem(LOCAL_STORAGE_KEYS.externalUserId) || "";
     const storedApplicantId = localStorage.getItem(LOCAL_STORAGE_KEYS.applicantId) || "";
     const storedWebsdkUrl = localStorage.getItem(LOCAL_STORAGE_KEYS.websdkUrl) || "";
+    if (storedExternalId) setExternalUserId(storedExternalId);
     if (storedApplicantId) setApplicantId(storedApplicantId);
     if (storedWebsdkUrl) setWebsdkUrl(storedWebsdkUrl);
   }, []);
@@ -232,6 +235,7 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
       }
 
       localStorage.setItem(LOCAL_STORAGE_KEYS.externalUserId, externalUserId);
+      setExternalUserId(externalUserId);
 
       setStatus("status-1", "success");
       setStatus("status-2", "loading");
@@ -260,15 +264,15 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
   }, [apiBase, onStart, resetStatuses, setStatus, state]);
 
   const checkStatus = useCallback(async () => {
-    if (!applicantId || verificationStatus === "checking") return;
+    if ((!applicantId && !externalUserId) || verificationStatus === "checking") return;
     setVerificationStatus("checking");
     setVerificationMessage("");
 
     try {
-      const statusEndpoint = buildEndpoint(
-        apiBase,
-        `/api/samsub/status/${encodeURIComponent(applicantId)}`
-      );
+      const statusPath = applicantId
+        ? `/api/samsub/status/${encodeURIComponent(applicantId)}`
+        : `/api/samsub/status/external?externalUserId=${encodeURIComponent(externalUserId)}`;
+      const statusEndpoint = buildEndpoint(apiBase, statusPath);
       const resp = await fetch(statusEndpoint);
       const payload = await resp.json();
       if (!resp.ok || !payload?.success) {
@@ -307,7 +311,7 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
       setVerificationStatus("failed");
       setVerificationMessage(err?.message || "Unable to fetch status");
     }
-  }, [apiBase, applicantId, onVerified, verificationStatus]);
+  }, [apiBase, applicantId, externalUserId, onVerified, verificationStatus]);
 
   return (
     <div style={styles.wrapper}>
@@ -379,7 +383,7 @@ export function SumsubConnector({ apiBase = "", onStart, onVerified }) {
           </div>
         )}
 
-        {applicantId && (
+        {(applicantId || externalUserId) && (
           <div style={{ marginTop: 18 }}>
             <button
               type="button"
