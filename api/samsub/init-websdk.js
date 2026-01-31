@@ -1,12 +1,22 @@
 import crypto from "crypto";
 import axios from "axios";
 import FormData from "form-data";
+import { createClient } from "@supabase/supabase-js";
 
 const BASE_URL = process.env.SUMSUB_BASE_URL || "https://api.sumsub.com";
 const APP_TOKEN = process.env.SUMSUB_APP_TOKEN;
 const APP_SECRET = process.env.SUMSUB_SECRET_KEY || process.env.SUMSUB_APP_SECRET;
 const DEFAULT_LEVEL = process.env.SUMSUB_DEFAULT_LEVEL || "idv-and-phone-verification";
 const DEFAULT_TTL = Number(process.env.SUMSUB_DEFAULT_TTL || 600);
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+
+const getSupabaseClient = () => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
+  return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false },
+  });
+};
 
 const corsOrigin = (req) => {
   const requestOrigin = req.headers.origin;
@@ -144,26 +154,63 @@ export default async function handler(req, res) {
     const body = normalizeBody(req.body);
     const levelName = body.levelName || DEFAULT_LEVEL;
     const ttlInSecs = Number(body.ttlInSecs) || DEFAULT_TTL;
-    const externalUserId = (body.externalUserId || `mint-${crypto.randomUUID()}`)
+    let externalUserId = (body.externalUserId || `mint-${crypto.randomUUID()}`)
       .toString()
       .trim();
 
-    const applicant = await createApplicant({
-      externalUserId,
-      levelName,
-      email: body.email,
-      phone: body.phone,
-      firstName: body.firstName,
-      lastName: body.lastName,
-    });
+    let applicantId = null;
+    const supabase = getSupabaseClient();
 
-    const applicantId = applicant?.id || applicant?.applicantId || applicant?.applicant?.id;
+    if (supabase) {
+      const { data: existing } = await supabase
+        .from("user_onboarding")
+        .select("sumsub_external_user_id, sumsub_applicant_id")
+        .eq("user_id", externalUserId)
+        .maybeSingle();
+
+      if (existing?.sumsub_external_user_id) {
+        externalUserId = existing.sumsub_external_user_id;
+      }
+
+      if (existing?.sumsub_applicant_id) {
+        applicantId = existing.sumsub_applicant_id;
+      }
+    }
+
+    if (!applicantId) {
+      const applicant = await createApplicant({
+        externalUserId,
+        levelName,
+        email: body.email,
+        phone: body.phone,
+        firstName: body.firstName,
+        lastName: body.lastName,
+      });
+
+      applicantId = applicant?.id || applicant?.applicantId || applicant?.applicant?.id;
+    }
+
     const websdk = await generateWebSDKLink({
       applicantId,
       externalUserId,
       levelName,
       ttlInSecs,
     });
+
+    const websdkUrl = websdk?.url || websdk?.link || websdk?.href || websdk;
+
+    if (supabase && applicantId && websdkUrl) {
+      await supabase
+        .from("user_onboarding")
+        .upsert({
+          user_id: externalUserId,
+          sumsub_external_user_id: externalUserId,
+          sumsub_applicant_id: applicantId,
+          sumsub_websdk_url: websdkUrl,
+          kyc_status: "pending",
+          kyc_checked_at: new Date().toISOString(),
+        }, { onConflict: "user_id" });
+    }
 
     return sendJson(
       res,
@@ -173,7 +220,7 @@ export default async function handler(req, res) {
         data: {
           externalUserId,
           applicantId,
-          websdkUrl: websdk?.url || websdk?.link || websdk?.href || websdk,
+          websdkUrl,
         },
       },
       origin
