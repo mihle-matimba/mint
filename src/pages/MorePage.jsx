@@ -17,25 +17,12 @@ import { supabase } from "../lib/supabase";
 import ProfileSkeleton from "../components/ProfileSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
-const MorePage = ({ onNavigate }) => {
-  const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState(null);
-  const [error, setError] = useState("");
-  const { kycVerified, bankLinked } = useRequiredActions();
-
-  const displayName = [profile?.first_name, profile?.last_name]
-    .filter(Boolean)
-    .join(" ");
-  const displayUsername = profile?.email
-    ? `@${profile.email.split("@")[0]}`
-    : "";
-  const initials = displayName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
+const MorePage = ({ onLogout }) => {
+  const [biometricsOn, setBiometricsOn] = useState(false);
+  const [biometryType, setBiometryType] = useState(null);
+  const [isAvailable, setIsAvailable] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
 
   useEffect(() => {
     let alive = true;
@@ -101,17 +88,16 @@ const MorePage = ({ onNavigate }) => {
     }
   };
 
-  const menuSections = [
-    [
-      { id: "profile", label: "Profile Details", icon: User, onClick: () => onNavigate?.("profileDetails") },
-      { id: "settings", label: "Settings", icon: Settings, onClick: () => onNavigate?.("settings") },
-    ],
-    [
-      { id: "help", label: "Help & FAQs", icon: HelpCircle },
-      { id: "legal", label: "Legal Documentation", icon: Scale, onClick: () => onNavigate?.("legal") },
-      { id: "subscriptions", label: "Manage Subscriptions", icon: ReceiptText },
-      { id: "logout", label: "Log out", icon: LogOut, onClick: handleLogout },
-    ],
+  const menuItems = [
+    { id: "profile", label: "Profile Details" },
+    { id: "kyc", label: "KYC Status" },
+    { id: "banks", label: "Linked Bank Accounts" },
+    { id: "settings", label: "Settings" },
+    { id: "preferences", label: "Preferences" },
+    { id: "help", label: "Help & FAQs" },
+    { id: "legal", label: "Legal" },
+    { id: "privacy", label: "Privacy" },
+    { id: "logout", label: "Logout", onClick: onLogout, tone: "danger" },
   ];
 
   if (loading) {
@@ -253,31 +239,17 @@ const MorePage = ({ onNavigate }) => {
         </div>
       </div>
 
-      <div className="space-y-6">
-        {menuSections.map((section, sectionIndex) => (
-          <div key={`section-${sectionIndex}`} className="border-t border-slate-200 pt-4">
-            <div className="space-y-2">
-              {section.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={item.onClick}
-                    className="flex w-full items-center justify-between rounded-2xl px-2 py-3 text-left text-slate-700 transition hover:bg-slate-50 active:scale-[0.99]"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                        <Icon className={`h-5 w-5 ${iconColorClasses}`} />
-                      </span>
-                      <span className="text-base font-medium text-slate-800">{item.label}</span>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-slate-400" />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+      <div className="space-y-2">
+        {menuItems.map((item) => (
+          <button 
+            key={item.id}
+            onClick={item.onClick}
+            className={`w-full rounded-2xl bg-white p-5 text-left font-medium shadow-sm transition active:scale-95 ${
+              item.tone === "danger" ? "text-rose-600" : "text-slate-700"
+            }`}
+          >
+            {item.label}
+          </button>
         ))}
       </div>
     </div>

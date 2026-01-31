@@ -1,14 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables. Please check your secrets.');
-  console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'set' : 'not set');
-  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'set' : 'not set');
+if (!hasSupabaseConfig && import.meta.env.DEV) {
+  console.info(
+    'Supabase client disabled. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY (see README) to enable it.'
+  );
 }
 
-export const supabase = supabaseUrl && supabaseAnonKey 
+export const supabase = hasSupabaseConfig
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;

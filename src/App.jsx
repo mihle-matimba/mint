@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "./lib/supabase.js";
 
+import Preloader from "./components/Preloader.jsx";
 import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
@@ -62,6 +63,7 @@ const getTokensFromHash = (hash) => {
 const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
 
 const App = () => {
+  const [showPreloader, setShowPreloader] = useState(true);
   const [currentPage, setCurrentPage] = useState(hasError ? "linkExpired" : (isRecoveryMode ? "auth" : "welcome"));
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -71,19 +73,7 @@ const App = () => {
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedArticleId, setSelectedArticleId] = useState(null);
   const recoveryHandled = useRef(false);
-  const { refetch: refetchNotifications } = useNotificationsContext();
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const appContent = document.querySelector(".app-content");
-      if (appContent) {
-        appContent.scrollTo({ top: 0, left: 0 });
-      }
-      window.scrollTo({ top: 0, left: 0 });
-    });
-
-    return () => window.cancelAnimationFrame(frame);
-  }, [currentPage]);
+  const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
     if (hasError) {
@@ -119,6 +109,31 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (!supabase || isRecoveryMode) return;
+
+    const hydrateFromSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data?.session;
+        setHasSession(Boolean(session));
+
+        if (session) {
+          const storedPage = window.localStorage.getItem("mint_current_page");
+          if (storedPage) {
+            setCurrentPage(storedPage);
+          }
+        } else if (currentPage === "userOnboarding" || currentPage === "home") {
+          setCurrentPage("welcome");
+        }
+      } catch {
+        setHasSession(false);
+      }
+    };
+
+    hydrateFromSession();
+  }, [currentPage]);
+
+  useEffect(() => {
     if (!supabase || isRecoveryMode) {
       return;
     }
@@ -142,9 +157,43 @@ const App = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isCheckingAuth) return;
+
+    setShowPreloader(true);
+    const timeoutId = setTimeout(() => {
+      setShowPreloader(false);
+    }, 1200);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentPage, isCheckingAuth]);
+
+  useEffect(() => {
+    if (isRecoveryMode) return;
+    if (hasSession && currentPage) {
+      window.localStorage.setItem("mint_current_page", currentPage);
+    }
+  }, [currentPage, hasSession]);
+
+  if (showPreloader) {
+    return <Preloader />;
+  }
   const openAuthFlow = (step) => {
     setAuthStep(step);
     setCurrentPage("auth");
+  };
+
+  const handleLogout = async () => {
+    try {
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
+    } finally {
+      window.localStorage.removeItem("mint_current_page");
+      setHasSession(false);
+      setAuthStep("email");
+      setCurrentPage("welcome");
+    }
   };
 
   if (currentPage === "linkExpired") {
@@ -334,7 +383,7 @@ const App = () => {
   if (currentPage === "more") {
     return (
       <AppLayout activeTab="more" onTabChange={setCurrentPage}>
-        <MorePage onNavigate={setCurrentPage} />
+        <MorePage onLogout={handleLogout} />
       </AppLayout>
     );
   }
@@ -466,8 +515,8 @@ const App = () => {
   return (
     <AuthPage
       initialStep={authStep}
-      onSignupComplete={handleSignupComplete}
-      onLoginComplete={handleLoginComplete}
+      onSignupComplete={() => setCurrentPage("userOnboarding")}
+      onLoginComplete={() => setCurrentPage("userOnboarding")}
     />
   );
 };
