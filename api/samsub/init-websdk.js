@@ -224,10 +224,20 @@ export default async function handler(req, res) {
         applicantId = applicant?.id || applicant?.applicantId || applicant?.applicant?.id;
       } catch (error) {
         const status = error?.response?.status;
-        if (status === 409) {
-          const existing = await getApplicantByExternalUserId(externalUserId);
-          const record = Array.isArray(existing) ? existing[0] : existing?.items?.[0] || existing?.list?.[0];
-          applicantId = record?.id || record?.applicantId || record?.applicant?.id;
+        if (status === 409 || status === 405) {
+          try {
+            const existing = await getApplicantByExternalUserId(externalUserId);
+            const record = Array.isArray(existing)
+              ? existing[0]
+              : existing?.items?.[0] || existing?.list?.[0];
+            applicantId = record?.id || record?.applicantId || record?.applicant?.id;
+          } catch (lookupError) {
+            console.warn("Sumsub applicant lookup failed:", lookupError?.message || lookupError);
+          }
+
+          if (!applicantId && status === 405) {
+            applicantId = null;
+          }
         } else {
           throw error;
         }
