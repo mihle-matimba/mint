@@ -21,14 +21,13 @@ const corsOrigin = (req) => {
 };
 
 const sendJson = (res, statusCode, payload, origin) => {
-  res.status(statusCode).set({
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": origin || "*",
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    Vary: "Origin",
-  });
-  res.send(JSON.stringify(payload));
+  res.statusCode = statusCode;
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Access-Control-Allow-Origin", origin || "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Vary", "Origin");
+  res.end(JSON.stringify(payload));
 };
 
 const sign = (method, pathWithQuery, body = "") => {
@@ -89,12 +88,11 @@ export default async function handler(req, res) {
   const origin = corsOrigin(req);
 
   if (req.method === "OPTIONS") {
-    res.status(204).set({
-      "Access-Control-Allow-Origin": origin,
-      "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      Vary: "Origin",
-    });
+    res.statusCode = 204;
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Vary", "Origin");
     return res.end();
   }
 
