@@ -13,6 +13,11 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.en
 
 const getSupabaseClient = () => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return null;
+  try {
+    new URL(SUPABASE_URL);
+  } catch {
+    return null;
+  }
   return createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
     auth: { persistSession: false },
   });
