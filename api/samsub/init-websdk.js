@@ -144,6 +144,12 @@ const generateWebSDKLink = async ({ applicantId, externalUserId, levelName = DEF
   return call("POST", path, { query });
 };
 
+const getApplicantByExternalUserId = async (externalUserId) => {
+  const path = "/resources/applicants";
+  const query = { externalUserId };
+  return call("GET", path, { query });
+};
+
 const normalizeBody = (body) => {
   if (!body) return {};
   if (typeof body === "string") {
@@ -205,16 +211,27 @@ export default async function handler(req, res) {
     }
 
     if (!applicantId) {
-      const applicant = await createApplicant({
-        externalUserId,
-        levelName,
-        email: body.email,
-        phone: body.phone,
-        firstName: body.firstName,
-        lastName: body.lastName,
-      });
+      try {
+        const applicant = await createApplicant({
+          externalUserId,
+          levelName,
+          email: body.email,
+          phone: body.phone,
+          firstName: body.firstName,
+          lastName: body.lastName,
+        });
 
-      applicantId = applicant?.id || applicant?.applicantId || applicant?.applicant?.id;
+        applicantId = applicant?.id || applicant?.applicantId || applicant?.applicant?.id;
+      } catch (error) {
+        const status = error?.response?.status;
+        if (status === 409) {
+          const existing = await getApplicantByExternalUserId(externalUserId);
+          const record = Array.isArray(existing) ? existing[0] : existing?.items?.[0] || existing?.list?.[0];
+          applicantId = record?.id || record?.applicantId || record?.applicant?.id;
+        } else {
+          throw error;
+        }
+      }
     }
 
     const websdk = await generateWebSDKLink({
