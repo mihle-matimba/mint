@@ -134,14 +134,14 @@ const createApplicant = async ({ externalUserId, levelName = DEFAULT_LEVEL, emai
 };
 
 const generateWebSDKLink = async ({ applicantId, externalUserId, levelName = DEFAULT_LEVEL, ttlInSecs = DEFAULT_TTL, lang = "en" }) => {
-  const path = `/resources/sdkIntegrations/levels/${encodeURIComponent(levelName)}/websdkLink`;
-  const query = {
+  const path = "/resources/sdkIntegrations/levels/-/websdkLink";
+  const data = {
     ttlInSecs,
+    levelName,
     lang,
-    ...(applicantId ? { userId: applicantId } : {}),
-    ...(externalUserId ? { externalUserId } : {}),
+    userId: applicantId || externalUserId,
   };
-  return call("POST", path, { query });
+  return call("POST", path, { data });
 };
 
 const getApplicantByExternalUserId = async (externalUserId) => {
@@ -189,6 +189,20 @@ export default async function handler(req, res) {
 
     let applicantId = null;
     const supabase = getSupabaseClient();
+
+    if (supabase && isUuid(bodyUserId)) {
+      try {
+        await supabase
+          .from("user_onboarding")
+          .upsert({
+            user_id: bodyUserId,
+            sumsub_external_user_id: externalUserId,
+            kyc_checked_at: new Date().toISOString(),
+          }, { onConflict: "user_id" });
+      } catch (error) {
+        console.warn("Supabase preflight upsert failed:", error?.message || error);
+      }
+    }
 
     if (supabase && isUuid(bodyUserId)) {
       try {
