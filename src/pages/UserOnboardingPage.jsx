@@ -64,6 +64,11 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [existingOnboardingId, setExistingOnboardingId] = useState(null);
+  const [authStatus, setAuthStatus] = useState({
+    isChecked: false,
+    isAuthenticated: false,
+    displayName: "",
+  });
   const dropdownRef = useRef(null);
 
   const selectedOption = employmentOptions.find(
@@ -186,6 +191,36 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
   }, []);
 
   useEffect(() => {
+    const loadAuthUser = async () => {
+      if (!supabase) {
+        setAuthStatus({ isChecked: true, isAuthenticated: false, displayName: "" });
+        return;
+      }
+
+      try {
+        const { data } = await supabase.auth.getUser();
+        const user = data?.user;
+        if (!user) {
+          setAuthStatus({ isChecked: true, isAuthenticated: false, displayName: "" });
+          return;
+        }
+
+        const displayName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          user.email ||
+          "Signed in";
+
+        setAuthStatus({ isChecked: true, isAuthenticated: true, displayName });
+      } catch {
+        setAuthStatus({ isChecked: true, isAuthenticated: false, displayName: "" });
+      }
+    };
+
+    loadAuthUser();
+  }, []);
+
+  useEffect(() => {
     const loadExistingOnboarding = async () => {
       if (!supabase) return;
 
@@ -250,6 +285,17 @@ const OnboardingProcessPage = ({ onBack, onComplete }) => {
           <ArrowLeftIcon width={20} height={20} />
         </button>
         <div className="w-full max-w-2xl onboarding-process-stage">
+          <div className="mb-4 text-center text-xs uppercase tracking-[0.2em] text-slate-500">
+            {authStatus.isChecked ? (
+              authStatus.isAuthenticated ? (
+                <>Signed in as {authStatus.displayName}</>
+              ) : (
+                <>Not signed in</>
+              )
+            ) : (
+              <>Checking session…</>
+            )}
+          </div>
           {step === 0 ? (
             <div>
               <div className="text-center animate-fade-in delay-1">
