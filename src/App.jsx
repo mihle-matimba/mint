@@ -5,6 +5,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
+import LoanConfigurationPage from "./pages/LoanConfigurationPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
@@ -253,35 +254,31 @@ const App = () => {
         onCloseModal={closeModal}
       >
         <CreditPage
-          onOpenNotifications={() => {
-            setNotificationReturnPage("credit");
-            setCurrentPage("notifications");
-          }}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
-        />
+            onOpenNotifications={() => {
+              setNotificationReturnPage("credit");
+              setCurrentPage("notifications");
+            }}
+            onOpenTruID={() => setCurrentPage("creditApply")}
+          />
       </AppLayout>
     );
   }
-  
-  if (currentPage === "creditScore") {
+
+  if (currentPage === "creditApply") {
     return (
-      <AppLayout
-        activeTab="credit"
-        onTabChange={setCurrentPage}
-        onWithdraw={handleWithdrawRequest}
-        onShowComingSoon={handleShowComingSoon}
-        modal={modal}
-        onCloseModal={closeModal}
-      >
-        <CreditPage
-          initialView="score"
-          onOpenNotifications={() => {
-            setNotificationReturnPage("credit");
-            setCurrentPage("notifications");
-          }}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
-        />
-      </AppLayout>
+      <CreditApplyPage
+        onBack={() => setCurrentPage("credit")}
+        onComplete={() => setCurrentPage("loanConfig")}
+      />
+    );
+  }
+
+  if (currentPage === "loanConfig") {
+    return (
+      <LoanConfigurationPage
+        onBack={() => setCurrentPage("creditApply")}
+        onComplete={() => setCurrentPage("credit")}
+      />
     );
   }
 
@@ -611,10 +608,6 @@ const App = () => {
 
   if (currentPage === "invite") {
     return <InvitePage onBack={() => setCurrentPage("actions")} />;
-  }
-
-  if (currentPage === "creditApply") {
-    return <CreditApplyPage />;
   }
 
   if (currentPage === "creditRepay") {
