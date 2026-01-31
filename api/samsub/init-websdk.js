@@ -3,7 +3,18 @@ import axios from "axios";
 import FormData from "form-data";
 import { createClient } from "@supabase/supabase-js";
 
-const BASE_URL = process.env.SUMSUB_BASE_URL || "https://api.sumsub.com";
+const DEFAULT_BASE_URL = "https://api.sumsub.com";
+const resolveBaseUrl = () => {
+  const raw = process.env.SUMSUB_BASE_URL;
+  if (!raw) return DEFAULT_BASE_URL;
+  try {
+    new URL(raw);
+    return raw;
+  } catch {
+    return DEFAULT_BASE_URL;
+  }
+};
+const BASE_URL = resolveBaseUrl();
 const APP_TOKEN = process.env.SUMSUB_APP_TOKEN;
 const APP_SECRET = process.env.SUMSUB_SECRET_KEY || process.env.SUMSUB_APP_SECRET;
 const DEFAULT_LEVEL = process.env.SUMSUB_DEFAULT_LEVEL || "idv-and-phone-verification";
