@@ -5,4 +5,5 @@ node_modules
 
 # local asset sources
 /assets/
-assets_fixed/
+/assets_fixed/
+!src/assets/

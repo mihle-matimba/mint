@@ -5,14 +5,17 @@ const STEP_PAGES = {
   1: "step1",
   2: "step2",
   3: "step3",
-  4: "step4"
+  4: "step4",
 };
 const DEFAULT_INTEREST_RATE = 0.15;
 const STALE_LOAN_MS = 60 * 60 * 1000;
 
 async function getSessionUser() {
   if (!supabase) return null;
-  const { data: { session }, error } = await supabase.auth.getSession();
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
   if (error) {
     console.error("Session fetch error:", error.message || error);
     return null;
@@ -94,7 +97,7 @@ export async function updateLoan(loanId, fields) {
     .from("loan_application")
     .update({
       ...fields,
-      updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
     })
     .eq("id", loanId)
     .select()
@@ -121,7 +124,7 @@ async function createLoan(stepNumber) {
       status: "in_progress",
       principal_amount: 0,
       amount_repayable: 0,
-      number_of_months: 1
+      number_of_months: 1,
     })
     .select()
     .single();
@@ -135,7 +138,10 @@ async function createLoan(stepNumber) {
   return data;
 }
 
-export async function initLoanStep(currentStepNumber, { updateStep = true, allowRedirect = false } = {}) {
+export async function initLoanStep(
+  currentStepNumber,
+  { updateStep = true, allowRedirect = false } = {},
+) {
   const loanId = localStorage.getItem(LOAN_KEY);
   let loan = await fetchLoanById(loanId);
 
@@ -159,7 +165,11 @@ export async function initLoanStep(currentStepNumber, { updateStep = true, allow
     }
   }
 
-  if (loan && (loan.step_number === 4 || loan.status === "completed") && currentStepNumber === 1) {
+  if (
+    loan &&
+    (loan.step_number === 4 || loan.status === "completed") &&
+    currentStepNumber === 1
+  ) {
     localStorage.removeItem(LOAN_KEY);
     loan = null;
   }
@@ -169,7 +179,11 @@ export async function initLoanStep(currentStepNumber, { updateStep = true, allow
     return loan;
   }
 
-  if (allowRedirect && loan.step_number > currentStepNumber && loan.step_number < 4) {
+  if (
+    allowRedirect &&
+    loan.step_number > currentStepNumber &&
+    loan.step_number < 4
+  ) {
     const nextPage = STEP_PAGES[loan.step_number];
     if (nextPage) {
       window.location.href = `/${nextPage}`;
@@ -178,7 +192,9 @@ export async function initLoanStep(currentStepNumber, { updateStep = true, allow
   }
 
   if (updateStep && loan.step_number < currentStepNumber) {
-    const updated = await updateLoan(loan.id, { step_number: currentStepNumber });
+    const updated = await updateLoan(loan.id, {
+      step_number: currentStepNumber,
+    });
     if (updated) {
       loan = updated;
     }

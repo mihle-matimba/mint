@@ -14,7 +14,9 @@ import {
   getBiometricsUserEmail,
   getBiometryTypeName,
   isNativeIOS,
-  isNativeAndroid
+  isNativeAndroid,
+  storeCredentials,
+  getStoredCredentials
 } from '../lib/biometrics.js';
 
 const OTP_LENGTH = 6;
@@ -34,6 +36,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [lastName, setLastName] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [otp, setOtp] = useState(Array.from({ length: OTP_LENGTH }, () => ''));
@@ -63,6 +66,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   const [showBiometricPrompt, setShowBiometricPrompt] = useState(false);
   const [pendingAuthCallback, setPendingAuthCallback] = useState(null);
   const [pendingAuthEmail, setPendingAuthEmail] = useState('');
+  const [pendingAuthPassword, setPendingAuthPassword] = useState('');
   const [pendingAuthShouldMarkLogin, setPendingAuthShouldMarkLogin] = useState(false);
   const [canUseBiometricLogin, setCanUseBiometricLogin] = useState(false);
   const [biometryType, setBiometryType] = useState(null);
@@ -95,6 +99,12 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
   useEffect(() => {
     setCurrentStep(initialStep);
   }, [initialStep]);
+
+  useEffect(() => {
+    if (currentStep !== 'password') {
+      setShowConfirmPassword(false);
+    }
+  }, [currentStep]);
 
   useEffect(() => {
     const checkBiometricLogin = async () => {
@@ -158,7 +168,31 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         return;
       }
       
-      showToast('Please enter your password once to enable Face ID login.');
+      const storedCredentials = await getStoredCredentials();
+      if (DEBUG_BIOMETRICS) {
+        console.debug('[Biometrics] Stored credentials check', { hasCredentials: !!storedCredentials });
+      }
+      
+      if (storedCredentials?.username && storedCredentials?.password) {
+        const { data, error: loginError } = await supabase.auth.signInWithPassword({
+          email: storedCredentials.username,
+          password: storedCredentials.password,
+        });
+        
+        if (!loginError && data?.session) {
+          markAsLoggedIn(storedCredentials.username);
+          if (onLoginComplete) {
+            onLoginComplete();
+          }
+          return;
+        }
+        
+        if (DEBUG_BIOMETRICS) {
+          console.debug('[Biometrics] Stored credentials login failed', loginError);
+        }
+      }
+      
+      showToast('Please enter your password once to enable biometric login.');
       if (emailForBiometrics) {
         setLoginEmail(emailForBiometrics);
       }
@@ -357,6 +391,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       const { available } = await isBiometricsAvailable();
       if (available) {
         setPendingAuthEmail(email);
+        setPendingAuthPassword(password);
         setPendingAuthCallback(() => onSignupComplete);
         setPendingAuthShouldMarkLogin(false);
         setTimeout(() => {
@@ -502,26 +537,22 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         }, 100);
         return;
       }
-      showStep('firstName');
+      showStep('name');
       return;
     }
     showToast('Enter a valid email address to continue.');
   };
 
-  const handleFirstNameContinue = () => {
-    if (firstName.trim().length > 0) {
-      showStep('lastName');
+  const handleNameContinue = () => {
+    if (!firstName.trim()) {
+      showToast('Add your first name to continue.');
       return;
     }
-    showToast('Add your first name to continue.');
-  };
-
-  const handleLastNameContinue = () => {
-    if (lastName.trim().length > 0) {
-      showStep('password');
+    if (!lastName.trim()) {
+      showToast('Add your last name to continue.');
       return;
     }
-    showToast('Add your last name to continue.');
+    showStep('password');
   };
 
   const handleLoginContinue = () => {
@@ -578,6 +609,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         const { available } = await isBiometricsAvailable();
         if (available && (isNativeIOS() || isNativeAndroid())) {
           setPendingAuthEmail(loginEmail);
+          setPendingAuthPassword(loginPassword);
           setPendingAuthCallback(() => onLoginComplete);
           setPendingAuthShouldMarkLogin(true);
           setShowBiometricPrompt(true);
@@ -691,7 +723,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
       showToast('Your password must meet all requirements to continue.');
       return;
     }
-    showStep('confirm');
+    setShowConfirmPassword(true);
   };
 
   const handleConfirmContinue = async () => {
@@ -759,7 +791,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
 
   const formSubmit = (event) => {
     event.preventDefault();
-    if (currentStep === 'confirm') {
+    if (currentStep === 'password' && showConfirmPassword) {
       handleConfirmContinue();
     }
   };
@@ -823,7 +855,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               </p>
             </div>
 
-            <div id="step-first-name" className={`step ${currentStep === 'firstName' ? 'active' : ''} space-y-8`}>
+            <div id="step-name" className={`step ${currentStep === 'name' ? 'active' : ''} space-y-6`}>
               <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${firstName ? 'has-value' : ''}`}>
                 <TextInput
                   id="first-name"
@@ -833,24 +865,8 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   value={firstName}
                   onChange={(event) => setFirstName(event.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                 />
-                <PrimaryButton ariaLabel="Continue" onClick={handleFirstNameContinue}>
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
-                </PrimaryButton>
               </div>
-              <button
-                type="button"
-                id="back-to-email"
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('email')}
-              >
-                ← Back
-              </button>
-            </div>
-
-            <div id="step-last-name" className={`step ${currentStep === 'lastName' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${lastName ? 'has-value' : ''}`}>
+              <div className={`glass glass-input shadow-xl animate-on-load delay-5 ${lastName ? 'has-value' : ''}`}>
                 <TextInput
                   id="last-name"
                   placeholder="Last name"
@@ -859,7 +875,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
                   value={lastName}
                   onChange={(event) => setLastName(event.target.value.replace(/[^a-zA-Z\s'-]/g, ''))}
                 />
-                <PrimaryButton ariaLabel="Continue" onClick={handleLastNameContinue}>
+                <PrimaryButton ariaLabel="Continue" onClick={handleNameContinue}>
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
                   </svg>
@@ -867,42 +883,100 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               </div>
               <button
                 type="button"
-                id="back-to-first-name"
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('firstName')}
+                id="back-to-email"
+                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-6"
+                onClick={() => showStep('email')}
               >
                 ← Back
               </button>
             </div>
 
-            <div id="step-login-email" className={`step ${currentStep === 'loginEmail' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginEmail ? 'has-value' : ''}`}>
-                <TextInput
-                  type="email"
-                  id="login-email"
-                  placeholder="Email"
-                  required
-                  autoComplete="email"
-                  value={loginEmail}
-                  onChange={(event) => setLoginEmail(event.target.value)}
-                />
-                <PrimaryButton ariaLabel="Continue" onClick={handleLoginContinue}>
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
-                </PrimaryButton>
-              </div>
-              {canUseBiometricLogin && (
-                <button
-                  type="button"
-                  className="text-sm font-semibold text-foreground underline-offset-4 hover:underline transition"
-                  onClick={handleBiometricLogin}
-                >
-                  Use {biometryName}
-                </button>
+            <div id="step-login-email" className={`step ${currentStep === 'loginEmail' ? 'active' : ''} space-y-6`}>
+              {showLoginRateLimitScreen ? (
+                <div className="otp-cooldown animate-on-load delay-4">
+                  <h4>Too many attempts</h4>
+                  <p>
+                    {loginCooldownLevel >= 2 
+                      ? 'Please contact support or try again later.'
+                      : `Please wait ${formatTime(loginCooldown)} before trying again.`
+                    }
+                  </p>
+                  <div className="flex flex-col gap-3 mt-4">
+                    <button
+                      type="button"
+                      className="text-sm text-foreground underline underline-offset-4"
+                      onClick={handleForgotPassword}
+                    >
+                      Reset Password
+                    </button>
+                    {loginCooldownLevel >= 2 && (
+                      <a href="#" className="text-sm text-foreground underline underline-offset-4">
+                        Contact Support
+                      </a>
+                    )}
+                  </div>
+                  <p className="dismiss-countdown">
+                    Time remaining: {formatTime(loginCooldown)}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${loginEmail ? 'has-value' : ''}`}>
+                    <TextInput
+                      type="email"
+                      id="login-email"
+                      placeholder="Email"
+                      required
+                      autoComplete="email"
+                      value={loginEmail}
+                      onChange={(event) => setLoginEmail(event.target.value)}
+                    />
+                  </div>
+                  <div className={`glass glass-input shadow-xl animate-on-load delay-5 ${loginPassword ? 'has-value' : ''}`}>
+                    <PasswordInput
+                      id="login-password"
+                      placeholder="Password"
+                      required
+                      minLength={6}
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      disabled={loginCooldown > 0}
+                    />
+                    <PrimaryButton ariaLabel="Sign in" onClick={handleLoginSubmit} disabled={loginCooldown > 0 || isLoading}>
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </PrimaryButton>
+                  </div>
+                  
+                  {loginAttempts > 0 && loginAttempts < MAX_LOGIN_ATTEMPTS && (
+                    <p className={`otp-attempts ${MAX_LOGIN_ATTEMPTS - loginAttempts <= 3 ? 'otp-error' : ''}`}>
+                      {MAX_LOGIN_ATTEMPTS - loginAttempts} attempts remaining
+                    </p>
+                  )}
+                  
+                  <div className="flex flex-col items-center gap-3">
+                    {canUseBiometricLogin && (
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-foreground underline-offset-4 hover:underline transition"
+                        onClick={handleBiometricLogin}
+                      >
+                        Use {biometryName}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-sm text-muted-foreground hover:text-foreground underline-offset-4 hover:underline transition"
+                      onClick={handleForgotPassword}
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
+                </>
               )}
-              <p className="text-center text-sm text-muted-foreground animate-on-load delay-5">
-                Need an account?
+              <p className="text-center text-sm text-muted-foreground animate-on-load delay-6">
+                Need an account?{' '}
                 <button
                   type="button"
                   id="back-to-signup"
@@ -1111,57 +1185,74 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
             </div>
 
             <div id="step-password" className={`step ${currentStep === 'password' ? 'active' : ''} space-y-6`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${password ? 'has-value' : ''}`}>
-                <PasswordInput
-                  id="password"
-                  placeholder="Create password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-                <PrimaryButton ariaLabel="Continue" onClick={handlePasswordContinue}>
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
-                </PrimaryButton>
+              <div style={{ position: 'relative', minHeight: '56px' }}>
+                <div 
+                  className={`glass glass-input shadow-xl ${password ? 'has-value' : ''}`}
+                  style={{ 
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    opacity: showConfirmPassword ? 0 : 1,
+                    transform: showConfirmPassword ? 'scale(0.95)' : 'scale(1)',
+                    position: showConfirmPassword ? 'absolute' : 'relative',
+                    pointerEvents: showConfirmPassword ? 'none' : 'auto',
+                    width: '100%',
+                    top: 0,
+                    left: 0
+                  }}
+                >
+                  <PasswordInput
+                    id="password"
+                    placeholder="Create password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                  <PrimaryButton ariaLabel="Continue" onClick={handlePasswordContinue}>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </PrimaryButton>
+                </div>
+                
+                <div 
+                  className={`glass glass-input shadow-xl ${confirmPassword ? 'has-value' : ''}`}
+                  style={{ 
+                    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+                    transitionDelay: showConfirmPassword ? '0.1s' : '0s',
+                    opacity: showConfirmPassword ? 1 : 0,
+                    transform: showConfirmPassword ? 'scale(1)' : 'scale(0.95)',
+                    position: showConfirmPassword ? 'relative' : 'absolute',
+                    pointerEvents: showConfirmPassword ? 'auto' : 'none',
+                    width: '100%',
+                    top: 0,
+                    left: 0
+                  }}
+                >
+                  <PasswordInput
+                    id="confirm"
+                    placeholder="Confirm password"
+                    required
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                  <PrimaryButton ariaLabel="Continue" onClick={handleConfirmContinue}>
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </PrimaryButton>
+                </div>
               </div>
               
-              <PasswordStrengthIndicator password={password} />
+              {!showConfirmPassword && (
+                <PasswordStrengthIndicator password={password} />
+              )}
               
-              
-              <button
-                type="button"
-                id="back-to-last-name"
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('lastName')}
-              >
-                ← Back
-              </button>
-            </div>
-
-            <div id="step-confirm" className={`step ${currentStep === 'confirm' ? 'active' : ''} space-y-8`}>
-              <div className={`glass glass-input shadow-xl animate-on-load delay-4 ${confirmPassword ? 'has-value' : ''}`}>
-                <PasswordInput
-                  id="confirm"
-                  placeholder="Confirm password"
-                  required
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                />
-                <PrimaryButton ariaLabel="Continue" onClick={handleConfirmContinue}>
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 5l7 7-7 7" />
-                  </svg>
-                </PrimaryButton>
-              </div>
-              
-              {confirmPassword && password !== confirmPassword && (
+              {showConfirmPassword && confirmPassword && password !== confirmPassword && (
                 <p className="text-sm text-center" style={{ color: '#FF3B30' }}>
                   Passwords don't match
                 </p>
               )}
-              {confirmPassword && password === confirmPassword && (
+              {showConfirmPassword && confirmPassword && password === confirmPassword && (
                 <p className="text-sm text-center" style={{ color: '#34C759' }}>
                   Passwords match
                 </p>
@@ -1169,9 +1260,16 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
               
               <button
                 type="button"
-                id="back-to-password"
+                id="back-to-name"
                 className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-2 transition animate-on-load delay-5"
-                onClick={() => showStep('password')}
+                onClick={() => {
+                  if (showConfirmPassword) {
+                    setShowConfirmPassword(false);
+                    setConfirmPassword('');
+                  } else {
+                    showStep('name');
+                  }
+                }}
               >
                 ← Back
               </button>
@@ -1296,6 +1394,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
         isOpen={showBiometricPrompt}
         onClose={() => setShowBiometricPrompt(false)}
         userEmail={pendingAuthEmail}
+        userPassword={pendingAuthPassword}
         onComplete={(enabled) => {
           setShowBiometricPrompt(false);
           if (pendingAuthShouldMarkLogin && pendingAuthEmail) {
@@ -1306,6 +1405,7 @@ const AuthForm = ({ initialStep = 'email', onSignupComplete, onLoginComplete }) 
           }
           setPendingAuthCallback(null);
           setPendingAuthEmail('');
+          setPendingAuthPassword('');
           setPendingAuthShouldMarkLogin(false);
         }}
       />
