@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import {
   ArrowLeft,
   Settings,
@@ -22,6 +22,20 @@ const MorePage = ({ onNavigate }) => {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
   const { kycVerified, bankLinked } = useRequiredActions();
+  const GradientIcon = ({ icon: Icon, className }) => {
+    const gradientId = useId();
+
+    return (
+      <Icon className={className} stroke={`url(#${gradientId})`}>
+        <defs>
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#6d28d9" />
+            <stop offset="100%" stopColor="#a855f7" />
+          </linearGradient>
+        </defs>
+      </Icon>
+    );
+  };
 
   const displayName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)
@@ -130,8 +144,6 @@ const MorePage = ({ onNavigate }) => {
 
   const nameLabel = displayName || "Not set";
   const usernameLabel = displayUsername || "Not set";
-  const iconColorClasses = "text-[#5b21b6]";
-
 
   return (
     <div className="min-h-screen bg-white px-6 pt-16 pb-24">
@@ -207,7 +219,7 @@ const MorePage = ({ onNavigate }) => {
               <div className="flex items-center gap-2">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
 
-                  <ShieldCheck className={`h-5 w-5 ${iconColorClasses}`} />
+                  <GradientIcon icon={ShieldCheck} className="h-5 w-5" />
                 </span>
                 <span className="text-sm font-medium text-slate-700">KYC Verification</span>
               </div>
@@ -228,7 +240,7 @@ const MorePage = ({ onNavigate }) => {
               <div className="flex items-center gap-2">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100">
 
-                  <Landmark className={`h-5 w-5 ${iconColorClasses}`} />
+                  <GradientIcon icon={Landmark} className="h-5 w-5" />
 
                 </span>
                 <span className="text-sm font-medium text-slate-700">Bank Account</span>
@@ -268,7 +280,7 @@ const MorePage = ({ onNavigate }) => {
                   >
                     <div className="flex items-center gap-3">
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100">
-                        <Icon className={`h-5 w-5 ${iconColorClasses}`} />
+                        <GradientIcon icon={Icon} className="h-5 w-5" />
                       </span>
                       <span className="text-base font-medium text-slate-800">{item.label}</span>
                     </div>
