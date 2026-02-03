@@ -20,14 +20,13 @@ import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useFinancialData } from "../lib/useFinancialData";
 import HomeSkeleton from "../components/HomeSkeleton";
-import MintBalanceCard from "../components/MintBalanceCard";
+import InvestmentsCard from "../components/InvestmentsCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
 import NotificationBell from "../components/NotificationBell";
 
 const HomePage = ({
   onOpenNotifications,
-  onOpenMintBalance,
   onOpenActivity,
   onOpenActions,
   onOpenInvestments,
@@ -40,7 +39,7 @@ const HomePage = ({
 }) => {
   const { profile, loading } = useProfile();
   const { kycVerified, bankLinked, loading: actionsLoading } = useRequiredActions();
-  const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
+  const { investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
   const [failedLogos, setFailedLogos] = useState({});
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -57,9 +56,9 @@ const HomePage = ({
     return <HomeSkeleton />;
   }
 
-  const handleMintBalancePress = () => {
-    if (onOpenMintBalance) {
-      onOpenMintBalance();
+  const handleInvestmentsPress = () => {
+    if (onOpenInvestments) {
+      onOpenInvestments();
     }
   };
 
@@ -176,12 +175,7 @@ const HomePage = ({
             <NotificationBell onClick={onOpenNotifications} />
           </header>
 
-          <MintBalanceCard
-            amount={balance}
-            changeText={balance > 0 ? "Updated just now" : ""}
-            updatedAt={new Date()}
-            onPressMintBalance={handleMintBalancePress}
-          />
+          <InvestmentsCard amount={investments} onViewAll={handleInvestmentsPress} />
         </div>
       </div>
 

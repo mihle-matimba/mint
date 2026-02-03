@@ -7,7 +7,8 @@
 - Notifications are app-wide state via context in [src/lib/NotificationsContext.jsx](src/lib/NotificationsContext.jsx) and are mounted in `main.jsx`.
 
 ## Critical workflows
-- Dev server: `npm run dev` (Vite is hardwired to localhost:5000 via vite.config.js).
+- Dev server: `npm run dev` runs the Express API server and Vite; Vite is hardwired to localhost:5000 and proxies /api to http://localhost:3001 (see [vite.config.js](vite.config.js) and [server/index.cjs](server/index.cjs)).
+- API-only: `npm run server` starts the Express API on port 3001.
 - Build: `npm run build` (output dist/; used by Capacitor webDir in capacitor.config.json).
 - Mobile sync: `npx cap sync ios|android` after build.
 
@@ -24,8 +25,17 @@
 ## Payments
 - Paystack is used on the client; SDK is loaded in index.html and wired in [src/pages/PaymentPage.jsx](src/pages/PaymentPage.jsx).
 
+## API server + KYC integrations
+- Express API lives in [server/index.cjs](server/index.cjs) and exposes /api/sumsub/* and /api/truid/* endpoints.
+- Sumsub requires `SUMSUB_APP_TOKEN`, `SUMSUB_SECRET_KEY`, optional `SUMSUB_LEVEL_NAME`; TruID requires `TRUID_API_KEY`, `BRAND_ID`, optional `TRUID_SERVICES`.
+- Server accepts either plain or VITE_-prefixed Supabase envs for webhook updates (see [server/index.cjs](server/index.cjs)).
+
 ## Styling conventions
 - Tailwind CSS only; compose classes instead of inline styles. Shared inputs use `forwardRef` and className merging (see [src/components/TextInput.jsx](src/components/TextInput.jsx)).
+
+## Asset + deploy quirks
+- Vite `base` is `./` for GitHub Pages/Vercel compatibility (see [vite.config.js](vite.config.js)); keep asset paths relative.
+- The branded font must exist at [public/assets/fonts/future-earth.ttf](public/assets/fonts/future-earth.ttf).
 
 ## Env requirements
 - Required: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_PAYSTACK_PUBLIC_KEY`.

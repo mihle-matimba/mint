@@ -336,6 +336,10 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   const allTimeReturn = series[series.length - 1]?.returnPct ?? 12.4;
   const formattedReturn = `${returnValue >= 0 ? "+" : ""}${returnValue.toFixed(2)}%`;
   const formattedAllTimeReturn = `${allTimeReturn >= 0 ? "+" : ""}${allTimeReturn.toFixed(2)}%`;
+  const holdingsBySymbol = useMemo(
+    () => new Map(holdingsSecurities.map((security) => [security.symbol, security])),
+    [holdingsSecurities],
+  );
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const strategyData = strategies.length > 0 ? strategies : mockStrategyCards;
   const holdingSuggestions = useMemo(() => {
@@ -437,6 +441,19 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
     selectedSort,
     selectedSectorFilter,
   ]);
+
+  const getStrategyHoldingsSnapshot = (strategy) => {
+    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return [];
+    return strategy.holdings.map((holding) => {
+      const symbol = holding.ticker || holding.symbol || holding;
+      const security = holdingsBySymbol.get(symbol);
+      return {
+        symbol,
+        name: security?.name || symbol,
+        logo_url: security?.logo_url || null,
+      };
+    });
+  };
 
   const applyFilters = () => {
     setSelectedSort(draftSort);
@@ -721,27 +738,31 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                   {strategy.holdings && strategy.holdings.length > 0 && (
                   <div className="mt-3 flex items-center gap-3">
                     <div className="flex -space-x-2">
-                      {holdingsSecurities.slice(0, 3).map((company) => (
-                        <div
-                          key={`${strategy.name}-${company.name}`}
-                          className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
-                        >
-                          {company.logo_url ? (
-                            <img
-                              src={company.logo_url}
-                              alt={company.name}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">
-                              {company.symbol?.substring(0, 2)}
-                            </div>
-                          )}
+                      {getStrategyHoldingsSnapshot(strategy)
+                        .slice(0, 3)
+                        .map((holding) => (
+                          <div
+                            key={`${strategy.name}-${holding.symbol}`}
+                            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                          >
+                            {holding.logo_url ? (
+                              <img
+                                src={holding.logo_url}
+                                alt={holding.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[8px] font-bold text-slate-600">
+                                {holding.symbol?.substring(0, 2)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      {strategy.holdings.length > 3 ? (
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
+                          +{Math.max(0, strategy.holdings.length - 3)}
                         </div>
-                      ))}
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
-                        +{Math.max(0, strategy.holdings.length - 3)}
-                      </div>
+                      ) : null}
                     </div>
                     <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
                   </div>
@@ -978,12 +999,39 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
 
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-full bg-white shadow-sm ring-1 ring-slate-100">
-                  <img
-                    src="https://s3-symbol-logo.tradingview.com/country/ZA--big.svg"
-                    alt="Strategy"
-                    className="h-full w-full object-cover"
-                  />
+                <div className="flex items-center">
+                  {(() => {
+                    const snapshot = getStrategyHoldingsSnapshot(selectedStrategy);
+                    const visibleHoldings = snapshot.slice(0, 3);
+                    const extraCount = Math.max(0, snapshot.length - visibleHoldings.length);
+                    return (
+                      <div className="flex -space-x-2">
+                        {visibleHoldings.map((holding) => (
+                          <div
+                            key={`${selectedStrategy.name}-${holding.symbol}`}
+                            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
+                          >
+                            {holding.logo_url ? (
+                              <img
+                                src={holding.logo_url}
+                                alt={holding.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
+                                {holding.symbol?.substring(0, 2)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        {extraCount > 0 ? (
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
+                            +{extraCount}
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-slate-900">{selectedStrategy.name}</h3>
