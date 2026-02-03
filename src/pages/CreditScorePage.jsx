@@ -140,7 +140,7 @@ const CreditScorePage = ({ onBack }) => {
               <span>TransUnion</span>
               <span>{updatedLabel}</span>
             </div>
-          )}
+          </div>
         </CreditMetricCard>
 
         {showScoreHistory && (

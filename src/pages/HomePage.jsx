@@ -35,6 +35,7 @@ const HomePage = ({
   onOpenCreditApply,
   onOpenCreditRepay,
   onOpenInvest,
+  onOpenMarkets,
   onOpenWithdraw,
   onOpenSettings,
 }) => {
@@ -60,6 +61,28 @@ const HomePage = ({
   const handleMintBalancePress = () => {
     if (onOpenMintBalance) {
       onOpenMintBalance();
+    }
+  };
+
+  const handleOpenInvest = () => {
+    if (onOpenInvest) {
+      onOpenInvest();
+      return;
+    }
+
+    if (onOpenInvestments) {
+      onOpenInvestments();
+    }
+  };
+
+  const handleOpenMarkets = () => {
+    if (onOpenMarkets) {
+      onOpenMarkets();
+      return;
+    }
+
+    if (onOpenInvest) {
+      onOpenInvest();
     }
   };
 
@@ -190,7 +213,7 @@ const HomePage = ({
           {[
             { label: "Pay", icon: Wallet, onClick: () => setShowPayModal(true) },
             { label: "Receive", icon: HandCoins, onClick: () => setShowReceiveModal(true) },
-            { label: "Markets", icon: TrendingUp, onClick: onOpenInvest },
+            { label: "Markets", icon: TrendingUp, onClick: handleOpenMarkets },
             { label: "Withdraw", icon: ArrowDownToLine, onClick: onOpenWithdraw },
           ].map((item) => {
             const Icon = item.icon;
@@ -280,7 +303,7 @@ const HomePage = ({
               <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
               <button
                 type="button"
-                onClick={onOpenInvest}
+                onClick={handleOpenInvest}
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Make your first investment

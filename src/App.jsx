@@ -236,7 +236,8 @@ const App = () => {
           onOpenCredit={() => setCurrentPage("credit")}
           onOpenCreditApply={() => setCurrentPage("creditApply")}
           onOpenCreditRepay={() => setCurrentPage("creditRepay")}
-          onOpenInvest={() => setCurrentPage("markets")}
+          onOpenInvest={() => setCurrentPage("invest")}
+          onOpenMarkets={() => setCurrentPage("markets")}
           onOpenWithdraw={handleWithdrawRequest}
           onOpenSettings={() => setCurrentPage("settings")}
         />
@@ -312,7 +313,7 @@ const App = () => {
             setNotificationReturnPage("investments");
             setCurrentPage("notifications");
           }}
-          onOpenInvest={() => setCurrentPage("markets")}
+          onOpenInvest={() => setCurrentPage("invest")}
         />
       </AppLayout>
     );
