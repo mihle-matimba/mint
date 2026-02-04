@@ -278,6 +278,7 @@ const App = () => {
     return (
       <LoanConfigurationPage
         onBack={() => setCurrentPage("creditApply")}
+        onBackToCredit={() => setCurrentPage("credit")}
         onComplete={() => setCurrentPage("credit")}
       />
     );

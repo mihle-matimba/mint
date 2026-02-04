@@ -25,6 +25,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
     window.location.pathname === "/credit/score" ? "score" : "overview"
   );
   const [creditOverview, setCreditOverview] = useState(defaultCreditOverview);
+  const [hasSubmittedLoan, setHasSubmittedLoan] = useState(false);
   const { profile, loading } = useProfile();
   const {
     availableCredit,
@@ -83,6 +84,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
         .from("loan_application")
         .select("principal_amount,amount_repayable,monthly_repayable,first_repayment_date,status")
         .eq("user_id", userId)
+        .in("status", ["submitted", "Submitted"])
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -102,7 +104,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
           next.availableCredit = formatZar(maxLimit);
         }
 
-        if (loanData?.principal_amount || loanData?.amount_repayable) {
+        if (loanData?.principal_amount || loanData?.amount_repayable || loanData?.monthly_repayable) {
           next.loanBalance = formatZar(Number(loanData.principal_amount) || 0);
           next.nextPaymentDate = loanData.first_repayment_date
             ? new Date(loanData.first_repayment_date).toLocaleDateString("en-GB", {
@@ -113,7 +115,7 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             : "—";
           next.minDue = formatZar(Number(loanData.monthly_repayable) || 0);
           next.utilisationPercent = prev.utilisationPercent;
-          next.loanStatus = loanData.status || "in_progress";
+          next.loanStatus = loanData.status || "submitted";
           next.amountRepayable = formatZar(Number(loanData.amount_repayable) || 0);
         } else {
           next.loanStatus = null;
@@ -128,6 +130,35 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
     };
 
     loadScoreAndLoan();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSubmittedLoan = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from("loan_application")
+        .select("id, status")
+        .eq("user_id", userId)
+        .in("status", ["submitted", "Submitted"])
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+      if (isMounted) {
+        setHasSubmittedLoan(!error && (data?.length ?? 0) > 0);
+      }
+    };
+
+    loadSubmittedLoan();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const navigate = (viewName) => {
@@ -293,8 +324,9 @@ const CreditPage = ({ onOpenNotifications, onOpenTruID, onOpenCreditStep2 }) => 
             <CreditActionGrid
               actions={[
                 {
-                  label: "Apply for credit",
+                  label: hasSubmittedLoan ? "Application submitted" : "Apply for credit",
                   onClick: () => onOpenTruID ? onOpenTruID() : console.log("Apply for credit"),
+                  disabled: hasSubmittedLoan,
                 },
                 {
                   label: "Pay loan",

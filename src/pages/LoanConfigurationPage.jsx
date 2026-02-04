@@ -63,7 +63,7 @@ const getNextSalaryDate = (salaryDay, fromDate = new Date(), minDays = MIN_REPAY
   return candidate;
 };
 
-const LoanConfigurationPage = ({ onBack, onComplete }) => {
+const LoanConfigurationPage = ({ onBack, onBackToCredit, onComplete }) => {
   const [loanRecord, setLoanRecord] = useState(null);
   const [currentStep, setCurrentStep] = useState("amount");
   const [loanAmount, setLoanAmount] = useState("");
@@ -282,11 +282,21 @@ const LoanConfigurationPage = ({ onBack, onComplete }) => {
       ? !loanMonths || !salaryPaymentDay
       : !repaymentSchedule.length || !salaryPaymentDay;
 
+  const handleBack = () => {
+    if (loanRecord?.step_number >= 3 && onBackToCredit) {
+      onBackToCredit();
+      return;
+    }
+    if (onBack) {
+      onBack();
+    }
+  };
+
   return (
     <MintGradientLayout
       title="Loan Configuration"
       subtitle="Set your preferred loan amount, duration, and repayment schedule."
-      onBack={onBack}
+      onBack={handleBack}
       stepInfo="4 / 4"
     >
       <MintCard className="overflow-hidden">
