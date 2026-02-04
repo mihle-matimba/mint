@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
-import { useFinancialData, useInvestments } from "../lib/useFinancialData";
+import { useFinancialData, useInvestments, useCreditInfo } from "../lib/useFinancialData";
 import HomeSkeleton from "../components/HomeSkeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
@@ -40,8 +40,9 @@ const HomePage = ({
   onOpenSettings,
 }) => {
   const { profile, loading } = useProfile();
-  const { kycVerified, bankLinked, loading: actionsLoading } = useRequiredActions();
+  const { kycVerified, bankLinked, bankSnapshotExists, loading: actionsLoading } = useRequiredActions();
   const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
+  const { availableCreditCombined } = useCreditInfo();
   const { monthlyChangePercent } = useInvestments();
   const [failedLogos, setFailedLogos] = useState({});
   const [showPayModal, setShowPayModal] = useState(false);
@@ -105,10 +106,10 @@ const HomePage = ({
       title: "Link your bank account",
       description: "Connect to enable instant transfers",
       priority: 2,
-      status: bankLinked ? "Linked" : "Not Linked",
+      status: bankLinked || bankSnapshotExists ? "Linked" : "Not Linked",
       icon: Landmark,
       routeName: "actions",
-      isComplete: bankLinked,
+      isComplete: bankLinked || bankSnapshotExists,
       dueAt: "2025-01-22T12:00:00Z",
       createdAt: "2025-01-19T09:00:00Z",
     },
@@ -201,7 +202,7 @@ const HomePage = ({
           </header>
 
           <SwipeableBalanceCard
-            amount={balance}
+            amount={balance > 0 ? balance : (availableCreditCombined || 0)}
             totalInvestments={investments}
             investmentChange={monthlyChangePercent || 0}
             bestPerformingAssets={bestAssets}

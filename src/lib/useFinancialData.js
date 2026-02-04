@@ -226,6 +226,8 @@ export const useTransactions = (limit = 20) => {
 export const useCreditInfo = () => {
   const [data, setData] = useState({
     availableCredit: 0,
+    allocationsValue: 0,
+    availableCreditCombined: 0,
     score: 0,
     loanBalance: 0,
     nextPaymentDate: null,
@@ -253,9 +255,11 @@ export const useCreditInfo = () => {
 
         const userId = userData.user.id;
 
-        const [creditResult, scoreHistoryResult] = await Promise.all([
+        const [creditResult, scoreHistoryResult, snapshotResult, allocationsResult] = await Promise.all([
           supabase.from("credit_accounts").select("*").eq("user_id", userId).maybeSingle(),
           supabase.from("credit_score_history").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
+          supabase.from("truid_bank_snapshots").select("net_monthly_income,avg_monthly_income,avg_monthly_expenses").eq("user_id", userId).order("captured_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("allocations").select("value").eq("user_id", userId),
         ]);
 
         const credit = creditResult.data;
@@ -271,9 +275,27 @@ export const useCreditInfo = () => {
         const scoreChangesToday = allScoreChanges.filter((s) => s.rawDate >= sevenDaysAgo);
         const scoreChangesAllTime = allScoreChanges;
 
+        let computedAvailableCredit = 0;
+        const snapshotData = snapshotResult?.data;
+        const netIncome = Number(snapshotData?.net_monthly_income)
+          || (Number(snapshotData?.avg_monthly_income) - Number(snapshotData?.avg_monthly_expenses))
+          || 0;
+        if (Number.isFinite(netIncome) && netIncome > 0) {
+          computedAvailableCredit = Math.max(1000, Math.floor(netIncome * 0.2));
+        }
+
+        const allocationsValue = (allocationsResult?.data || []).reduce(
+          (sum, allocation) => sum + (Number(allocation?.value) || 0),
+          0
+        );
+
+        const combinedAvailableCredit = (credit?.available_credit || computedAvailableCredit || 0) + allocationsValue;
+
         if (credit) {
           setData({
-            availableCredit: credit.available_credit || 0,
+            availableCredit: credit.available_credit || computedAvailableCredit || 0,
+            allocationsValue,
+            availableCreditCombined: combinedAvailableCredit,
             score: credit.credit_score || 0,
             loanBalance: credit.loan_balance || 0,
             nextPaymentDate: credit.next_payment_date ? formatDate(credit.next_payment_date) : null,
@@ -285,7 +307,16 @@ export const useCreditInfo = () => {
             hasCredit: true,
           });
         } else {
-          setData((prev) => ({ ...prev, loading: false, hasCredit: false }));
+          setData((prev) => ({
+            ...prev,
+            availableCredit: computedAvailableCredit || 0,
+            allocationsValue,
+            availableCreditCombined: combinedAvailableCredit,
+            scoreChangesToday,
+            scoreChangesAllTime,
+            loading: false,
+            hasCredit: false,
+          }));
         }
       } catch (err) {
         console.error("Error fetching credit info:", err);
