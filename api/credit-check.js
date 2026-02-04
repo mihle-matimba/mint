@@ -24,27 +24,20 @@ function normalizeDobForExperian(dob) {
 function buildUserData(overrides = {}) {
   const base = {
     reference: 'algolendcheck',
-    identity_number: '9912060144082',
     passport_number: '',
-    surname: 'Mathe',
-    forename: 'Sipho',
     middle_name: '',
-    gender: 'M',
-    date_of_birth: '19991206',
-    address1: '123 Main St',
     address2: 'Apartment 4',
     address3: '',
     address4: 'Johannesburg',
     postal_code: '2000',
-    cell_tel_no: '0712345678',
     work_tel_no: '',
     home_tel_no: '',
-    email: 'sipho.mathe@example.com',
     user_id: 'U12345',
     client_ref: `ALGOLEND-${Date.now()}`
   };
 
   const merged = { ...base, ...(overrides || {}) };
+  merged.gender = 'M';
   if (merged.date_of_birth) {
     merged.date_of_birth = normalizeDobForExperian(merged.date_of_birth);
   }
@@ -125,6 +118,36 @@ export default async function handler(req, res) {
     contract_type: overrides?.contract_type || overrides?.contractType
   };
 
+  if (supabase && userId && userId !== 'anon-dev') {
+    try {
+      const dbClient = accessToken
+        ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            global: { headers: { Authorization: `Bearer ${accessToken}` } }
+          })
+        : supabase;
+
+      const { data: profileData } = await dbClient
+        .from('profiles')
+        .select('first_name,last_name,id_number,date_of_birth,address,phone_number,email')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (profileData) {
+        Object.assign(normalizedOverrides, {
+          identity_number: normalizedOverrides.identity_number || profileData.id_number,
+          surname: normalizedOverrides.surname || profileData.last_name,
+          forename: normalizedOverrides.forename || profileData.first_name,
+          date_of_birth: normalizedOverrides.date_of_birth || profileData.date_of_birth,
+          address1: normalizedOverrides.address1 || profileData.address,
+          cell_tel_no: normalizedOverrides.cell_tel_no || profileData.phone_number,
+          email: normalizedOverrides.email || profileData.email
+        });
+      }
+    } catch (profileError) {
+      console.warn('Profile lookup failed:', profileError?.message || profileError);
+    }
+  }
+
   if (normalizedOverrides?.annual_income && !normalizedOverrides?.gross_monthly_income) {
     const annualIncome = Number(normalizedOverrides.annual_income);
     if (Number.isFinite(annualIncome)) {
@@ -195,7 +218,11 @@ export default async function handler(req, res) {
   }
 
   if (!userPayload.identity_number || !userPayload.surname || !userPayload.forename) {
-    return res.status(400).json({ error: 'Missing required identity fields', required: ['identity_number', 'surname', 'forename'] });
+    return res.status(400).json({
+      error: 'Missing required identity fields',
+      required: ['identity_number', 'surname', 'forename'],
+      hint: 'Ensure profiles has id_number, first_name, last_name or pass values in request body.'
+    });
   }
 
   try {

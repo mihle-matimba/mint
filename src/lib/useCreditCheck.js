@@ -126,6 +126,7 @@ export function useCreditCheck() {
   const [locked, setLocked] = useState(false);
   const [engineResult, setEngineResult] = useState(null);
   const [engineStatus, setEngineStatus] = useState("Idle");
+  const [engineError, setEngineError] = useState("");
   const [mockMode, setMockMode] = useState(null);
   const [employerCsv, setEmployerCsv] = useState([]);
   const [isUpdatingLoan, setIsUpdatingLoan] = useState(false);
@@ -360,6 +361,7 @@ export function useCreditCheck() {
   const runEngine = useCallback(async () => {
     setEngineStatus("Running");
     setEngineResult(null);
+    setEngineError("");
 
     if (!supabase) {
       setEngineStatus("Failed");
@@ -395,16 +397,31 @@ export function useCreditCheck() {
       }
     };
 
-    const response = await fetch(`${apiBase}/credit-check`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
-      },
-      body: JSON.stringify(payload)
-    });
+    let result;
+    try {
+      const response = await fetch(`${apiBase}/credit-check`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify(payload)
+      });
 
-    const result = await response.json();
+      const responseText = await response.text();
+      try {
+        result = responseText ? JSON.parse(responseText) : {};
+      } catch (parseError) {
+        result = { error: responseText || "Invalid JSON from credit check" };
+      }
+
+      if (!response.ok) {
+        setEngineError(result?.error || response.statusText || "Credit check failed");
+      }
+    } catch (error) {
+      setEngineError(error?.message || "Credit check failed");
+      result = { error: error?.message || "Credit check failed" };
+    }
     setEngineResult(result);
     setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
 
@@ -482,6 +499,7 @@ export function useCreditCheck() {
     editInputs,
     engineResult,
     engineStatus,
+    engineError,
     runEngine,
     mockMode,
     employerCsv,

@@ -374,7 +374,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAssessment, onContinue }) => {
+const ResultStage = ({ score, isCalculating, breakdown, engineResult, engineError, onRunAssessment, onContinue }) => {
       const [showAllData, setShowAllData] = useState(false);
       const [loaderValue, setLoaderValue] = useState(0);
 
@@ -646,6 +646,11 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
                               {isDeclined ? "Loan declined" : "Continue to loan configuration"}
                            </button>
                         )}
+                        {engineError && (
+                           <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-semibold text-rose-700">
+                              Experian log: {engineError}
+                           </div>
+                        )}
                      </div>
                   )}
             </MintCard>
@@ -664,12 +669,13 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [showDetails, setShowDetails] = useState(false);
   
   // Real Hook Integration
-  const { 
+   const { 
     form: checkForm, 
     setField, 
     runEngine, 
     engineResult, 
     engineStatus, 
+      engineError,
     employerCsv,
     lockInputs,
     snapshot,
@@ -999,11 +1005,12 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                          yearsLocked={yearsAtEmployerLocked}
                       />;
             case 3:
-          return <ResultStage 
+             return <ResultStage 
              score={score} 
              isCalculating={isCalculating} 
              breakdown={engineResult?.breakdown} 
                 engineResult={engineResult}
+                engineError={engineError}
                 onRunAssessment={handleRunAssessment}
                 onContinue={onComplete}
                 />;
