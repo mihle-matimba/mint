@@ -15,7 +15,7 @@ import {
   X
 } from "lucide-react";
  
-const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
+const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon, borrowLocked = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [wheelCenter, setWheelCenter] = useState({ x: 0, y: 0 });
   const [dynamicRadius, setDynamicRadius] = useState(145);
@@ -38,7 +38,7 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
     { id: "withdraw", label: "Withdraw", icon: ArrowUpCircle, angle: -180 },
     { id: "payLoan", label: "Pay", icon: Wallet, angle: -135 },
     { id: "markets", label: "Markets", icon: TrendingUp, angle: -90 },
-    { id: "credit", label: "Borrow", icon: HandCoins, angle: -45 },
+    { id: "credit", label: "Borrow", icon: HandCoins, angle: -45, disabled: borrowLocked },
     { id: "rewards", label: "Rewards", icon: Gift, angle: 0 },
   ];
  
@@ -153,6 +153,10 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
                   <button
                     key={action.label}
                     onClick={() => {
+                      if (action.disabled) {
+                        setIsOpen(false);
+                        return;
+                      }
                       triggerHaptic(ImpactStyle.Medium);
                       if (action.id === "withdraw") {
                         if (onWithdraw) {
@@ -169,7 +173,9 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
                       }
                       setIsOpen(false);
                     }}
-                    className="absolute flex items-center justify-center group pointer-events-auto"
+                    className={`absolute flex items-center justify-center group pointer-events-auto ${
+                      action.disabled ? "opacity-50" : ""
+                    }`}
                     style={{
                       left: `${Math.cos(action.angle * (Math.PI / 180)) * dynamicRadius}px`,
                       top: `${Math.sin(action.angle * (Math.PI / 180)) * dynamicRadius}px`,

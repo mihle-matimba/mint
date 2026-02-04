@@ -76,6 +76,7 @@ const App = () => {
   const [selectedArticleId, setSelectedArticleId] = useState(null);
   const [investmentAmount, setInvestmentAmount] = useState(0);
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0 });
+  const [hasSubmittedLoan, setHasSubmittedLoan] = useState(false);
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
 
@@ -90,6 +91,35 @@ const App = () => {
 
     return () => window.cancelAnimationFrame(frame);
   }, [currentPage]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSubmittedLoan = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from("loan_application")
+        .select("id, status")
+        .eq("user_id", userId)
+        .in("status", ["submitted", "Submitted"])
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+      if (isMounted) {
+        setHasSubmittedLoan(!error && (data?.length ?? 0) > 0);
+      }
+    };
+
+    loadSubmittedLoan();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPage, sessionReady]);
 
   useEffect(() => {
     if (hasError) {
@@ -223,6 +253,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <HomePage
           onOpenNotifications={() => {
@@ -253,6 +284,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <CreditPage
             onOpenNotifications={() => {
@@ -293,6 +325,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <TransactPage />
       </AppLayout>
@@ -308,6 +341,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <InvestmentsPage
           onOpenNotifications={() => {
@@ -329,6 +363,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <InvestPage
           onBack={() => setCurrentPage("home")}
@@ -486,6 +521,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <MorePage onNavigate={setCurrentPage} />
       </AppLayout>
@@ -501,6 +537,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <SettingsPage onNavigate={setCurrentPage} />
       </AppLayout>
@@ -516,6 +553,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <BiometricsDebugPage onNavigate={setCurrentPage} />
       </AppLayout>
@@ -552,6 +590,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <MintBalancePage
           onBack={() => setCurrentPage("home")}
@@ -569,6 +608,7 @@ const App = () => {
   if (currentPage === "activity") {
     return (
       <AppLayout
+        borrowLocked={hasSubmittedLoan}
         activeTab="home"
         onTabChange={setCurrentPage}
         onWithdraw={handleWithdrawRequest}
@@ -584,6 +624,7 @@ const App = () => {
   if (currentPage === "actions") {
     return (
       <ActionsPage
+        borrowLocked={hasSubmittedLoan}
         onBack={() => setCurrentPage("home")}
         onNavigate={setCurrentPage}
       />

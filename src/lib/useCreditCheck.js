@@ -82,6 +82,28 @@ const parseYearsAtEmployerNumber = (value) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const sanitizeEngineResult = (value) => {
+  if (Array.isArray(value)) return value.map(sanitizeEngineResult);
+  if (value && typeof value === "object") {
+    const blockedKeys = new Set([
+      "gross_monthly_income",
+      "net_monthly_income",
+      "avg_monthly_income",
+      "avg_monthly_expenses",
+      "monthly_income",
+      "monthlyIncome",
+      "monthly_expenses",
+      "monthlyExpenses"
+    ]);
+    return Object.entries(value).reduce((acc, [key, val]) => {
+      if (blockedKeys.has(key)) return acc;
+      acc[key] = sanitizeEngineResult(val);
+      return acc;
+    }, {});
+  }
+  return value;
+};
+
 const buildWarningList = (form, profile) => {
   const warnings = [];
   if (!form.identityNumber) warnings.push("Missing ID number.");
@@ -142,6 +164,39 @@ export function useCreditCheck() {
       .then((record) => setLoanRecord(record))
       .catch(() => null);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadStoredEngineResult = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId || engineResult) return;
+
+      const { data: scoreData } = await supabase
+        .from("loan_engine_score")
+        .select("engine_result, engine_score")
+        .eq("user_id", userId)
+        .order("run_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!active) return;
+      if (scoreData?.engine_result) {
+        setEngineResult(scoreData.engine_result);
+        setEngineStatus("Complete");
+      } else if (Number.isFinite(scoreData?.engine_score)) {
+        setEngineStatus("Complete");
+      }
+    };
+
+    loadStoredEngineResult();
+
+    return () => {
+      active = false;
+    };
+  }, [engineResult]);
 
   useEffect(() => {
     let active = true;
@@ -352,6 +407,52 @@ export function useCreditCheck() {
     const result = await response.json();
     setEngineResult(result);
     setEngineStatus(result?.success === false || result?.ok === false ? "Failed" : "Complete");
+
+    if (supabase && sessionData?.session?.user?.id) {
+      const sanitizedResult = sanitizeEngineResult(result);
+      const engineScore = result?.loanEngineScoreNormalized ?? result?.loanEngineScore ?? result?.engineScore ?? null;
+      const experianScore = result?.creditScore ?? null;
+      const scoreReasons = Array.isArray(result?.scoreReasons) ? result.scoreReasons : [];
+      const exposure = result?.creditExposure || {};
+      const breakdown = result?.breakdown || {};
+      const borrowerData = result?.raw?.userData || {};
+
+      const payload = {
+        user_id: sessionData.session.user.id,
+        loan_application_id: loanRecord?.id || null,
+        run_at: new Date().toISOString(),
+        engine_score: Number.isFinite(engineScore) ? Math.round(engineScore) : null,
+        score_band: result?.scoreBand || null,
+        experian_score: Number.isFinite(experianScore) ? Math.round(experianScore) : null,
+        experian_weight: Number.isFinite(result?.experianWeight) ? Number(result.experianWeight) : null,
+        engine_total_contribution: Number.isFinite(result?.engineTotalContribution) ? Number(result.engineTotalContribution) : null,
+        annual_income: Number.isFinite(borrowerData?.annual_income) ? Number(borrowerData.annual_income) : null,
+        annual_expenses: Number.isFinite(borrowerData?.annual_expenses) ? Number(borrowerData.annual_expenses) : null,
+        years_current_employer: Number.isFinite(borrowerData?.years_in_current_job) ? Number(borrowerData.years_in_current_job) : null,
+        contract_type: breakdown?.contractType?.contractType || null,
+        is_new_borrower: typeof borrowerData?.algolend_is_new_borrower === "boolean" ? borrowerData.algolend_is_new_borrower : null,
+        employment_sector: breakdown?.employmentSector?.sector || null,
+        employer_name: borrowerData?.employment_employer_name || null,
+        exposure_revolving_utilization: Number.isFinite(exposure?.revolvingUtilization) ? Number(exposure.revolvingUtilization) : null,
+        exposure_revolving_balance: Number.isFinite(exposure?.revolvingBalance) ? Number(exposure.revolvingBalance) : null,
+        exposure_revolving_limit: Number.isFinite(exposure?.revolvingLimit) ? Number(exposure.revolvingLimit) : null,
+        exposure_total_balance: Number.isFinite(exposure?.totalBalance) ? Number(exposure.totalBalance) : null,
+        exposure_total_limit: Number.isFinite(exposure?.totalLimits) ? Number(exposure.totalLimits) : null,
+        exposure_open_accounts: Number.isFinite(exposure?.openAccounts) ? Number(exposure.openAccounts) : null,
+        score_reasons: scoreReasons,
+        engine_result: sanitizedResult
+      };
+
+      try {
+        const { error } = await supabase.from("loan_engine_score").insert(payload);
+        if (error && String(error?.message || error).includes("engine_result")) {
+          const { engine_result, ...fallbackPayload } = payload;
+          await supabase.from("loan_engine_score").insert(fallbackPayload);
+        }
+      } catch (error) {
+        console.warn("Failed to persist loan engine result:", error?.message || error);
+      }
+    }
   }, [apiBase, form, normalizedContractType, loanRecord]);
 
   const proceedToStep3 = useCallback(async () => {
