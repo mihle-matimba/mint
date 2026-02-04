@@ -11,7 +11,7 @@ import ActionsSkeleton from "../components/ActionsSkeleton";
 import { useRequiredActions } from "../lib/useRequiredActions";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { kycVerified, bankLinked, bankInReview, loading } = useRequiredActions();
+  const { kycVerified, bankLinked, bankInReview, bankSnapshotExists, loading } = useRequiredActions();
 
   if (loading) {
     return <ActionsSkeleton />;
@@ -33,15 +33,19 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       completed: kycVerified,
       navigateTo: "identityCheck",
     },
-    {
-      id: "bank-link",
-      title: "Link your primary bank",
-      description: "Connect to enable instant transfers",
-      status: getBankStatus(),
-      icon: Landmark,
-      completed: bankLinked,
-      navigateTo: "creditApply",
-    },
+    ...(bankSnapshotExists
+      ? []
+      : [
+          {
+            id: "bank-link",
+            title: "Link your primary bank",
+            description: "Connect to enable instant transfers",
+            status: getBankStatus(),
+            icon: Landmark,
+            completed: bankLinked,
+            navigateTo: "creditApply",
+          },
+        ]),
     {
       id: "invite",
       title: "Invite a friend",

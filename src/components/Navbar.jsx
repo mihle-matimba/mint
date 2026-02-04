@@ -162,6 +162,8 @@ const Navbar = ({ activeTab, setActiveTab, onWithdraw, onShowComingSoon }) => {
                         if (onShowComingSoon) {
                           onShowComingSoon(action.label);
                         }
+                      } else if (action.id === "credit") {
+                        setActiveTab("creditApply");
                       } else {
                         setActiveTab(action.id);
                       }
