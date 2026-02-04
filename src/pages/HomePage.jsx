@@ -18,9 +18,9 @@ import {
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
-import { useFinancialData } from "../lib/useFinancialData";
+import { useFinancialData, useInvestments } from "../lib/useFinancialData";
 import HomeSkeleton from "../components/HomeSkeleton";
-import MintBalanceCard from "../components/MintBalanceCard";
+import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
 import NotificationBell from "../components/NotificationBell";
@@ -42,6 +42,7 @@ const HomePage = ({
   const { profile, loading } = useProfile();
   const { kycVerified, bankLinked, loading: actionsLoading } = useRequiredActions();
   const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
+  const { monthlyChangePercent } = useInvestments();
   const [failedLogos, setFailedLogos] = useState({});
   const [showPayModal, setShowPayModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
@@ -199,10 +200,12 @@ const HomePage = ({
             <NotificationBell onClick={onOpenNotifications} />
           </header>
 
-          <MintBalanceCard
+          <SwipeableBalanceCard
             amount={balance}
-            changeText={balance > 0 ? "Updated just now" : ""}
-            updatedAt={new Date()}
+            totalInvestments={investments}
+            investmentChange={monthlyChangePercent || 0}
+            bestPerformingAssets={bestAssets}
+            userName={displayName}
             onPressMintBalance={handleMintBalancePress}
           />
         </div>
