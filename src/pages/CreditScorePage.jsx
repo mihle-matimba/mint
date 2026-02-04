@@ -15,13 +15,13 @@ const scoreChangesAllTime = [
 ];
 
 const CreditScorePage = ({ onBack }) => {
-  const [view, setView] = useState("today");
   const showScoreHistory = false;
   const [scoreSnapshot, setScoreSnapshot] = useState({
     score: null,
     delta: null,
     updatedAt: null,
   });
+  const [scoreBreakdown, setScoreBreakdown] = useState(null);
 
   useEffect(() => {
     const loadScore = async () => {
@@ -32,7 +32,7 @@ const CreditScorePage = ({ onBack }) => {
 
       const { data: scoreRows } = await supabase
         .from("loan_engine_score")
-        .select("engine_score,run_at")
+        .select("engine_score,run_at,engine_result")
         .eq("user_id", userId)
         .order("run_at", { ascending: false })
         .limit(2);
@@ -51,17 +51,16 @@ const CreditScorePage = ({ onBack }) => {
       };
 
       setScoreSnapshot(nextSnapshot);
+
+      const latestBreakdown = scoreRows?.[0]?.engine_result?.breakdown || null;
+      setScoreBreakdown(latestBreakdown);
     };
 
     loadScore();
   }, []);
 
   const hasScore = Number.isFinite(scoreSnapshot.score) && scoreSnapshot.score > 0;
-  const scoreChanges = hasScore
-    ? view === "today"
-      ? scoreChangesToday
-      : scoreChangesAllTime
-    : [];
+  const scoreChanges = hasScore ? scoreChangesToday : [];
 
   const scoreDelta = hasScore && scoreSnapshot.delta !== null
     ? `${scoreSnapshot.delta > 0 ? "+" : ""}${Math.round(scoreSnapshot.delta)} pts`
@@ -104,25 +103,8 @@ const CreditScorePage = ({ onBack }) => {
           </button>
         </header>
 
-        <div className="flex items-center justify-center rounded-full bg-slate-100 p-1 text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setView("today")}
-            className={`flex-1 rounded-full px-4 py-2 transition ${
-              view === "today" ? "bg-white text-slate-900 shadow" : "text-slate-500"
-            }`}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("all")}
-            className={`flex-1 rounded-full px-4 py-2 transition ${
-              view === "all" ? "bg-white text-slate-900 shadow" : "text-slate-500"
-            }`}
-          >
-            All time
-          </button>
+        <div className="flex items-center justify-center rounded-full bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600">
+          Today
         </div>
 
         <CreditMetricCard className="flex flex-col items-center gap-4 text-center">
@@ -137,9 +119,36 @@ const CreditScorePage = ({ onBack }) => {
 
           <div className="w-full">
             <div className="flex items-center justify-between text-[11px] text-slate-400">
-              <span>TransUnion</span>
+              <span>Experian</span>
               <span>{updatedLabel}</span>
             </div>
+          </div>
+        </CreditMetricCard>
+
+        <CreditMetricCard>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase text-slate-400">Score breakdown</p>
+            <span className="text-[11px] font-semibold text-slate-500">100%</span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {scoreBreakdown ? (
+              Object.entries(scoreBreakdown).map(([key, value]) => (
+                <div key={key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+                  <p className="text-sm font-semibold text-slate-700">
+                    {key.replace(/([A-Z])/g, " $1").trim()}
+                  </p>
+                  <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+                    {Number.isFinite(value?.contributionPercent)
+                      ? `${(value.contributionPercent * 100).toFixed(1)}%`
+                      : "—"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-slate-500">
+                No score breakdown available yet. Run a Mint score check to view your breakdown.
+              </p>
+            )}
           </div>
         </CreditMetricCard>
 
