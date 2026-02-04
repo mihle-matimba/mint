@@ -17,6 +17,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
    const lastStatusRef = useRef(null);
+   const popupRef = useRef(null);
 
   const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
@@ -54,6 +55,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
        );
 
        if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
+       popupRef.current = popup;
        
        setMessage("Complete the process in the popup window...");
        setStatus("polling");
@@ -95,6 +97,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
               setStatus("capturing");
               setMessage("Analyzing banking data...");
               addLog("Status Success. Starting Capture...");
+
               
               // Capture Data
               try {
@@ -124,7 +127,12 @@ const ConnectionStage = ({ onComplete, onError }) => {
                       throw new Error(captureData.error || "Capture failed");
                   }
 
-                  setStatus("success");
+                           if (popupRef.current && !popupRef.current.closed) {
+                              popupRef.current.close();
+                              popupRef.current = null;
+                           }
+
+                           setStatus("success");
                   setMessage("Banking data verified successfully.");
                   addLog("Capture Success! Saved Snapshot:");
                   addLog(JSON.stringify(captureData.snapshot, null, 2));
