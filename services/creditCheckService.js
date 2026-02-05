@@ -14,10 +14,10 @@ const DATA_FILE = path.join(DATA_DIR, 'credit-checks.json');
 // Experian API Configuration
 const EXPERIAN_CONFIG = {
     url: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
-    username: process.env.EXPERIAN_USERNAME||'32389-api',
-    password: process.env.EXPERIAN_PASSWORD||'9N=v@ZQapik1',
+    username: process.env.EXPERIAN_USERNAME,
+    password: process.env.EXPERIAN_PASSWORD,
     version: process.env.EXPERIAN_VERSION || '1.0',
-    origin: process.env.EXPERIAN_ORIGIN || 'Zwane',
+    origin: process.env.EXPERIAN_ORIGIN,
     origin_version: process.env.EXPERIAN_ORIGIN_VERSION || '0.0.1',
     mockMode: process.env.EXPERIAN_MOCK === 'true'
 };
