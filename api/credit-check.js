@@ -320,6 +320,7 @@ export default async function handler(req, res) {
         const loanEngineInsert = {
           user_id: userId,
           loan_application_id: loanApplicationId,
+          run_at: new Date().toISOString(),
           engine_score: Number.isFinite(loanEngineScoreNormalized)
             ? Math.round(loanEngineScoreNormalized)
             : null,
@@ -356,7 +357,8 @@ export default async function handler(req, res) {
           exposure_open_accounts: Number.isFinite(accountMetrics.openAccounts)
             ? accountMetrics.openAccounts
             : null,
-          score_reasons: scoreReasons
+          score_reasons: scoreReasons,
+          engine_result: result
         };
 
         const { error: insertError } = await dbClient
