@@ -9,6 +9,7 @@ import {
  
 const Navbar = ({ activeTab, setActiveTab }) => {
   const navRef = useRef(null);
+  
   const ImpactStyle = {
     Light: "LIGHT",
     Medium: "MEDIUM",
@@ -17,7 +18,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
  
   const tabs = [
     { id: "home", label: "Home", icon: Home },
-    { id: "portfolio", label: "Portfolio", icon: PieChart },
+    { id: "investments", label: "Portfolio", icon: PieChart },
     { id: "statements", label: "Statements", icon: FileText },
     { id: "more", label: "More", icon: MoreHorizontal },
   ];
@@ -42,15 +43,7 @@ const Navbar = ({ activeTab, setActiveTab }) => {
   };
 
   useLayoutEffect(() => {
-    // Update immediately on mount
     updateNavbarHeight();
-    
-    // Ensure navbar height is set before any painting
-    if (navRef.current) {
-      const height = navRef.current.offsetHeight;
-      document.documentElement.style.setProperty("--navbar-height", `${height}px`);
-    }
-    
     window.addEventListener("resize", updateNavbarHeight);
     window.addEventListener("orientationchange", updateNavbarHeight);
     
@@ -60,17 +53,6 @@ const Navbar = ({ activeTab, setActiveTab }) => {
     };
   }, []);
   
-  // Ensure navbar height persists after app reopen
-  useLayoutEffect(() => {
-    const interval = setTimeout(() => {
-      if (navRef.current) {
-        const height = navRef.current.offsetHeight;
-        document.documentElement.style.setProperty("--navbar-height", `${height}px`);
-      }
-    }, 100);
-    return () => clearTimeout(interval);
-  }, []);
- 
   return createPortal(
     <nav
       ref={navRef}

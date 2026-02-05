@@ -33,6 +33,7 @@ import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
 import TransactionHistorySection from "../components/TransactionHistorySection";
 import NotificationBell from "../components/NotificationBell";
+import { createPortal } from "react-dom";
 
 const HomePage = ({
   onOpenNotifications,
@@ -41,20 +42,35 @@ const HomePage = ({
   onOpenActions,
   onOpenInvestments,
   onOpenCredit,
-  onOpenCreditApply,
-  onOpenCreditRepay,
   onOpenInvest,
-  onOpenWithdraw,
   onOpenSettings,
   onOpenStrategies,
   onOpenMarkets,
   onOpenNews,
 }) => {
+  // --- 1. HOOKS & STATE (Must come first) ---
   const { profile, loading } = useProfile();
-  const { bankLinked, loading: actionsLoading } = useRequiredActions();
+  
+  // Note: We destructure 'refetch' as fetchFinancialData/fetchRequiredActions
+  // so the real-time listeners actually have a function to call.
+  const { 
+    balance, 
+    investments, 
+    transactions, 
+    bestAssets, 
+    loading: financialLoading, 
+    refetch: fetchFinancialData 
+  } = useFinancialData();
+
+  const { 
+    bankLinked, 
+    loading: actionsLoading, 
+    refetch: fetchRequiredActions 
+  } = useRequiredActions();
+
   const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
-  const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
   const { monthlyChangePercent } = useInvestments();
+
   const [bestStrategies, setBestStrategies] = useState([]);
   const [failedLogos, setFailedLogos] = useState({});
   const [showPayModal, setShowPayModal] = useState(false);
@@ -62,15 +78,17 @@ const HomePage = ({
   const [news, setNews] = useState([]);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [loadingNews, setLoadingNews] = useState(false);
-  
-  // Goals State
+  const [localBestAssets, setLocalBestAssets] = useState([]);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [goals, setGoals] = useState([]);
   const [loadingGoals, setLoadingGoals] = useState(false);
   const [isCreatingGoal, setIsCreatingGoal] = useState(false);
   const [newGoal, setNewGoal] = useState({ name: "", target_amount: "", target_date: "" });
-  
-  const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
+  const [editingGoalId, setEditingGoalId] = useState(null);
+
+  // Derived Values
+  const assetsToDisplay = localBestAssets.length > 0 ? localBestAssets : (bestAssets || []);
+  const displayName = [profile?.firstName, profile?.lastName].filter(Boolean).join(" ");
   const initials = displayName
     .split(" ")
     .filter(Boolean)
@@ -79,18 +97,113 @@ const HomePage = ({
     .join("")
     .toUpperCase();
 
-  // Fetch best performing strategies
+  // --- 2. CALLBACKS (Logic definitions) ---
+  const fetchBestAssets = React.useCallback(async () => {
+    if (!profile?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('allocations')
+        .select(`
+          value,
+          securities!inner ( symbol, name, logo_url ),
+          security_metrics!inner ( change_pct )
+        `)
+        .eq('user_id', profile.id)
+        .order('value', { ascending: false })
+        .limit(5);
+
+      if (error) throw error;
+
+      const formatted = data.map(item => ({
+        symbol: item.securities.symbol,
+        name: item.securities.name,
+        logo: item.securities.logo_url,
+        value: item.value,
+        change: item.security_metrics?.change_pct || 0
+      }));
+
+      setLocalBestAssets(formatted); 
+    } catch (e) { 
+      console.error("Asset fetch error:", e.message); 
+    }
+  }, [profile?.id]);
+
+  const fetchGoals = React.useCallback(async () => {
+    if (!profile?.id) return;
+    setLoadingGoals(true);
+    try {
+      const { data, error } = await supabase
+        .from('investment_goals')
+        .select('id, name, target_amount, current_amount, progress_percent') 
+        .eq('user_id', profile.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGoals(data || []);
+    } catch (e) { 
+      console.error("Goal fetch error:", e.message); 
+    } finally { 
+      setLoadingGoals(false); 
+    }
+  }, [profile?.id]);
+
+  // --- 3. EFFECTS (Side effects using the callbacks above) ---
+  
+  // Unified Real-time Subscription
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const homeSubscription = supabase
+      .channel('home_realtime_updates')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'investment_goals', 
+        filter: `user_id=eq.${profile.id}` 
+      }, () => fetchGoals()) 
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'transactions', 
+        filter: `user_id=eq.${profile.id}` 
+      }, () => {
+        fetchBestAssets(); 
+        if (typeof fetchFinancialData === 'function') fetchFinancialData(); 
+      })
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'required_actions', 
+        filter: `user_id=eq.${profile.id}` 
+      }, () => {
+        if (typeof fetchRequiredActions === 'function') fetchRequiredActions();
+      })
+      .subscribe();
+
+    // Initial loads
+    fetchBestAssets();
+    fetchGoals();
+
+    return () => {
+      supabase.removeChannel(homeSubscription);
+    };
+  }, [profile?.id, fetchBestAssets, fetchGoals, fetchFinancialData, fetchRequiredActions]);
+
+  // Specific check when Goals Modal opens
+  useEffect(() => {
+    if (showGoalsModal && profile?.id) {
+      fetchGoals();
+    }
+  }, [showGoalsModal, profile?.id, fetchGoals]);
+
+  // Strategies & News
   useEffect(() => {
     const fetchStrategies = async () => {
       try {
         const data = await getStrategiesWithMetrics();
-        const sorted = data
-          .sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0))
-          .slice(0, 5);
-        setBestStrategies(sorted);
-      } catch (error) {
-        console.error("Failed to load strategies", error);
-      }
+        setBestStrategies(data.sort((a, b) => (b.change_pct || 0) - (a.change_pct || 0)).slice(0, 5));
+      } catch (e) { console.error("Strategies error:", e); }
     };
     fetchStrategies();
   }, []);
@@ -100,96 +213,91 @@ const HomePage = ({
       setLoadingNews(true);
       try {
         const { data, error } = await supabase
-          .from('market_news') // Ensure this matches your table name
-          .select('*')
+          .from('News_articles') 
+          .select('id, title, source, published_at, body_text')
           .order('published_at', { ascending: false })
           .limit(3);
-        if (!error) setNews(data || []);
-      } catch (err) {
-        console.error("News load error", err);
-      } finally {
-        setLoadingNews(false);
-      }
+        if (error) throw error;
+        setNews(data || []);
+      } catch (err) { console.error("News error:", err.message); }
+      finally { setLoadingNews(false); }
     };
     fetchNews();
   }, []);
 
-  // Fetch Goals when modal opens
-  useEffect(() => {
-    if (showGoalsModal && profile?.id) {
-      fetchGoals();
-    }
-  }, [showGoalsModal, profile?.id]);
+  // --- 4. ACTION HANDLERS ---
+  const handleEditClick = (goal) => {
+    setNewGoal({ 
+      name: goal.name, 
+      target_amount: goal.target_amount, 
+      target_date: goal.target_date || "" 
+    });
+    setEditingGoalId(goal.id);
+    setIsCreatingGoal(true);
+  };
 
-  const fetchGoals = async () => {
+  const handleUpdateGoal = async (e) => {
+    e.preventDefault();
     setLoadingGoals(true);
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('investment_goals')
-        .select('*')
-        .eq('user_id', profile.id)
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-
+        .update({
+          name: newGoal.name,
+          target_amount: parseFloat(newGoal.target_amount),
+        })
+        .eq('id', editingGoalId);
       if (error) throw error;
-      setGoals(data || []);
-      // If no goals, automatically switch to create mode
-      if (!data || data.length === 0) {
-        setIsCreatingGoal(true);
-      }
-    } catch (error) {
-      console.error("Error fetching goals:", error);
-    } finally {
-      setLoadingGoals(false);
-    }
+      setEditingGoalId(null);
+      setIsCreatingGoal(false);
+      fetchGoals();
+    } catch (error) { console.error("Update error:", error.message); }
+    finally { setLoadingGoals(false); }
   };
 
   const handleCreateGoal = async (e) => {
     e.preventDefault();
     if (!newGoal.name || !newGoal.target_amount) return;
-
     setLoadingGoals(true);
     try {
       const { error } = await supabase.from('investment_goals').insert({
         user_id: profile.id,
         name: newGoal.name,
         target_amount: parseFloat(newGoal.target_amount),
-        target_date: newGoal.target_date || null,
         current_amount: 0,
         progress_percent: 0
       });
-
       if (error) throw error;
-      
-      // Reset and reload
       setNewGoal({ name: "", target_amount: "", target_date: "" });
       setIsCreatingGoal(false);
       fetchGoals();
-    } catch (error) {
-      console.error("Error creating goal:", error);
-    } finally {
-      setLoadingGoals(false);
-    }
+    } catch (error) { console.error("Create error:", error); }
+    finally { setLoadingGoals(false); }
   };
 
-  if (loading || financialLoading) {
-    return <HomeSkeleton />;
-  }
-
-  const handleMintBalancePress = () => {
-    if (onOpenMintBalance) {
-      onOpenMintBalance();
-    }
+  const handleDeleteGoal = async (goalId) => {
+    if (!window.confirm("Are you sure you want to delete this goal?")) return;
+    setLoadingGoals(true);
+    try {
+      const { error } = await supabase.from('investment_goals').delete().eq('id', goalId);
+      if (error) throw error;
+      setEditingGoalId(null);
+      setIsCreatingGoal(false);
+      setNewGoal({ name: "", target_amount: "", target_date: "" });
+      fetchGoals();
+    } catch (error) { console.error("Delete error:", error.message); }
+    finally { setLoadingGoals(false); }
   };
 
-  const getKycStatus = () => {
+  // --- 5. DATA FORMATTING FOR RENDER ---
+  if (loading || financialLoading) return <HomeSkeleton />;
+
+  const kycStatus = (() => {
     if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
     if (kycNeedsResubmission) return { text: "Needs Attention", style: "bg-amber-100 text-amber-700" };
     if (kycPending) return { text: "Pending", style: "bg-blue-100 text-blue-600" };
     return { text: "Not Verified", style: "bg-slate-100 text-slate-500" };
-  };
-
-  const kycStatus = getKycStatus();
+  })();
 
   const actionsData = [
     {
@@ -202,8 +310,7 @@ const HomePage = ({
       icon: ShieldCheck,
       routeName: "actions",
       isComplete: kycVerified,
-      dueAt: "2025-01-20T12:00:00Z",
-      createdAt: "2025-01-18T09:00:00Z",
+      isRequired: true,
     },
     {
       id: "bank-link",
@@ -214,8 +321,7 @@ const HomePage = ({
       icon: Landmark,
       routeName: "actions",
       isComplete: bankLinked,
-      dueAt: "2025-01-22T12:00:00Z",
-      createdAt: "2025-01-19T09:00:00Z",
+      isRequired: false,
     },
     {
       id: "investments",
@@ -226,8 +332,6 @@ const HomePage = ({
       icon: TrendingUp,
       routeName: "investments",
       isComplete: false,
-      dueAt: "2025-01-28T12:00:00Z",
-      createdAt: "2025-01-21T09:00:00Z",
     },
     {
       id: "invite",
@@ -238,29 +342,10 @@ const HomePage = ({
       icon: UserPlus,
       routeName: "actions",
       isComplete: false,
-      dueAt: "2025-02-05T12:00:00Z",
-      createdAt: "2025-01-23T09:00:00Z",
     },
   ];
 
-  const isActionsAvailable = true;
-  const outstandingActions = isActionsAvailable
-    ? actionsData
-        .filter((action) => !action.isComplete && action.status !== "Optional")
-        .sort((a, b) => {
-          if (a.priority !== b.priority) {
-            return a.priority - b.priority;
-          }
-          const dueA = a.dueAt ? new Date(a.dueAt).getTime() : Number.POSITIVE_INFINITY;
-          const dueB = b.dueAt ? new Date(b.dueAt).getTime() : Number.POSITIVE_INFINITY;
-          if (dueA !== dueB) {
-            return dueA - dueB;
-          }
-          const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-          return createdA - createdB;
-        })
-    : [];
+  const outstandingActions = actionsData.filter(action => action.id === "identity" && !action.isComplete);
 
   const transactionHistory = transactions.slice(0, 3).map((t) => ({
     title: t.title || t.description || "Transaction",
@@ -275,14 +360,13 @@ const HomePage = ({
       settings: onOpenSettings,
       actions: onOpenActions,
     };
-
     const handler = routes[action.routeName];
-    if (handler) {
-      handler();
-    }
+    if (handler) handler();
   };
 
-  const hasInvestments = bestAssets && bestAssets.length > 0;
+  const handleMintBalancePress = () => onOpenMintBalance?.();
+
+  const hasInvestments = assetsToDisplay.length > 0;
   const hasStrategies = bestStrategies && bestStrategies.length > 0;
 
   return (
@@ -315,13 +399,14 @@ const HomePage = ({
                 </button>
                 <button
                   type="button"
-                  onClick={onOpenCredit}
+                  onClick={onOpenCredit} 
                   className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 >
                   Credit
                 </button>
                 <button
                   type="button"
+                  onClick={() => onOpenInvest("transact")}
                   className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 >
                   Transact
@@ -346,16 +431,32 @@ const HomePage = ({
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
         <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
           {[
-            { label: <>Open<br />Strategies</>, icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
-            { label: "Markets", icon: TrendingUp, onClick: onOpenMarkets || onOpenInvest },
-            { label: "News", icon: Newspaper, onClick: onOpenNews || onOpenInvest },
-            { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
+            { 
+              label: <>Open<br />Strategies</>, 
+              icon: LayoutGrid, 
+              onClick: () => (onOpenStrategies ? onOpenStrategies("openstrategies") : onOpenInvest("openstrategies")) 
+            },
+            { 
+              label: "Markets", 
+              icon: TrendingUp, 
+              onClick: () => (onOpenMarkets ? onOpenMarkets("invest") : onOpenInvest("invest")) 
+            },
+            { 
+              label: "News", 
+              icon: Newspaper, 
+              onClick: () => (onOpenNews ? onOpenNews("news") : onOpenInvest("news")) 
+            },
+            { 
+              label: "Goals", 
+              icon: Target, 
+              onClick: () => setShowGoalsModal(true) 
+            },
           ].map((item, index) => {
             const Icon = item.icon;
             return (
               <button
                 key={index}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md"
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md transition-all active:scale-95 active:shadow-sm"
                 type="button"
                 onClick={item.onClick}
               >
@@ -367,6 +468,7 @@ const HomePage = ({
             );
           })}
         </section>
+        
 
         {outstandingActions.length > 0 ? (
           <OutstandingActionsSection
@@ -377,86 +479,86 @@ const HomePage = ({
         ) : null}
 
         {/* Best Performing Assets */}
-        <section>
-          <div className="flex items-end justify-between px-5 mb-3">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-slate-900">
-                Your best performing assets
-              </p>
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
-                  <Info className="h-3 w-3" />
-                </span>
-                <span>Based on your investment portfolio</span>
-              </div>
-            </div>
-            {hasInvestments && (
-              <button 
-                onClick={onOpenInvest} 
-                className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
-              >
-                View all
-              </button>
-            )}
-          </div>
-          
-          {hasInvestments ? (
-            <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {bestAssets.slice(0, 5).map((asset) => (
-                <div
-                  key={asset.symbol}
-                  className="flex min-w-[260px] flex-1 snap-start items-center gap-4 rounded-3xl bg-white p-4 shadow-md"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
-                    {failedLogos[asset.symbol] || !asset.logo ? (
-                      <span className="text-sm font-semibold text-slate-600">
-                        {asset.symbol}
-                      </span>
-                    ) : (
-                      <img
-                        src={asset.logo}
-                        alt={asset.name}
-                        className="h-10 w-10 object-contain"
-                        referrerPolicy="no-referrer"
-                        crossOrigin="anonymous"
-                        onError={() =>
-                          setFailedLogos((prev) => ({ ...prev, [asset.symbol]: true }))
-                        }
-                      />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
-                    <p className="text-xs text-slate-500 line-clamp-1">{asset.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-900">
-                      R{typeof asset.value === 'number' ? asset.value.toLocaleString() : asset.value}
-                    </p>
-                    <p className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
-                      {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : asset.change}%
-                    </p>
-                  </div>
+          <section>
+            <div className="flex items-end justify-between px-5 mb-3">
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-slate-900">
+                  Your best performing assets
+                </p>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-200 text-slate-500">
+                    <Info className="h-3 w-3" />
+                  </span>
+                  <span>Based on your investment portfolio</span>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-3xl bg-white p-6 shadow-md text-center">
-              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
-                <TrendingUp className="h-8 w-8" />
               </div>
-              <p className="text-sm font-semibold text-slate-900 mb-1">No investments yet</p>
-              <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
-              <button
-                type="button"
-                onClick={onOpenInvest}
-                className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
-              >
-                Make your first investment
-              </button>
+              {assetsToDisplay.length > 0 && (
+                <button 
+                  onClick={() => onOpenInvest("invest")}
+                  className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
+                >
+                  View all
+                </button>
+              )}
             </div>
-          )}
-        </section>
+            
+            {assetsToDisplay.length > 0 ? (
+              <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {assetsToDisplay.slice(0, 5).map((asset) => (
+                  <div
+                    key={asset.symbol}
+                    className="flex min-w-[260px] flex-1 snap-start items-center gap-4 rounded-3xl bg-white p-4 shadow-md"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-100">
+                      {failedLogos[asset.symbol] || !asset.logo ? (
+                        <span className="text-sm font-semibold text-slate-600">
+                          {asset.symbol}
+                        </span>
+                      ) : (
+                        <img
+                          src={asset.logo}
+                          alt={asset.name}
+                          className="h-10 w-10 object-contain"
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                          onError={() =>
+                            setFailedLogos((prev) => ({ ...prev, [asset.symbol]: true }))
+                          }
+                        />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-slate-900">{asset.symbol}</p>
+                      <p className="text-xs text-slate-500 line-clamp-1">{asset.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-900">
+                        R{typeof asset.value === 'number' ? asset.value.toLocaleString() : (asset.value || 0)}
+                      </p>
+                      <p className={`text-xs font-semibold ${asset.change >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {asset.change >= 0 ? '+' : ''}{typeof asset.change === 'number' ? asset.change.toFixed(2) : (asset.change || '0.00')}%
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-3xl bg-white p-6 shadow-md text-center">
+                <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-full bg-violet-50 text-violet-600 mb-4">
+                  <TrendingUp className="h-8 w-8" />
+                </div>
+                <p className="text-sm font-semibold text-slate-900 mb-1">No investments yet</p>
+                <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
+                <button
+                  type="button"
+                  onClick={() => onOpenInvest("invest")}
+                  className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
+                >
+                  Make your first investment
+                </button>
+              </div>
+            )}
+          </section>
 
         {/* Best Performing Strategies */}
         <section>
@@ -474,7 +576,7 @@ const HomePage = ({
             </div>
             {hasStrategies && (
               <button 
-                onClick={onOpenInvest} 
+              onClick={() => onOpenStrategies("openstrategies")}  
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
               >
                 View all
@@ -518,7 +620,7 @@ const HomePage = ({
               <p className="text-xs text-slate-500 mb-4">Explore our curated investment portfolios</p>
               <button
                 type="button"
-                onClick={onOpenInvest}
+                onClick={() => onOpenStrategies("openstrategies")}
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Browse Strategies
@@ -526,6 +628,7 @@ const HomePage = ({
             </div>
           )}
         </section>
+        {/* Market Insights Section */}
         <section>
           <div className="flex items-end justify-between px-5 mb-3">
             <div className="space-y-1">
@@ -540,7 +643,7 @@ const HomePage = ({
               </div>
             </div>
             <button 
-              onClick={() => onOpenNews()} // Opens the full list
+              onClick={() => onOpenNews("news")}
               className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
             >
               View all
@@ -552,25 +655,21 @@ const HomePage = ({
               news.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => onOpenNews(item)} // Opens specific article
+                  onClick={() => onOpenNews(item)} // This will now pass the real news object
                   className="flex w-full items-center gap-4 rounded-3xl bg-white p-3 shadow-md transition-active active:scale-[0.98]"
                 >
-                  {item.image_url && (
-                    <img 
-                      src={item.image_url} 
-                      alt="" 
-                      className="h-16 w-16 rounded-2xl object-cover bg-slate-100"
-                    />
-                  )}
                   <div className="flex-1 text-left">
                     <div className="flex items-center gap-2 mb-1">
+                      {/* Using 'source' from News_articles table schema */}
                       <span className="text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md">
-                        {item.category || 'Market'}
+                        {item.source || 'Market'}
                       </span>
+                      {/* Using 'published_at' from News_articles table schema */}
                       <span className="text-[10px] text-slate-400">
                         {formatDate(item.published_at)}
                       </span>
                     </div>
+                    {/* Using 'title' from News_articles table schema */}
                     <p className="text-sm font-semibold text-slate-900 line-clamp-2 leading-snug">
                       {item.title}
                     </p>
@@ -583,9 +682,15 @@ const HomePage = ({
                 <p className="text-xs text-slate-400">No recent insights available.</p>
               </div>
             )}
+            
+            {loadingNews && (
+              <div className="flex justify-center py-4">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-violet-100 border-t-violet-600" />
+              </div>
+            )}
           </div>
         </section>
-        
+
         {transactionHistory.length > 0 ? (
           <TransactionHistorySection items={transactionHistory} onViewAll={onOpenActivity} />
         ) : (
@@ -720,133 +825,130 @@ const HomePage = ({
         </div>
       )}
 
+      {/* --- GOALS MODAL --- */}
       {showGoalsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4">
+        <div className="fixed inset-0 z-[950] flex items-end justify-center bg-slate-900/60 px-4 pb-20 sm:items-center sm:pb-0">
           <button
             type="button"
-            className="absolute inset-0 h-full w-full cursor-default"
-            aria-label="Close modal"
-            onClick={() => setShowGoalsModal(false)}
+            className="absolute inset-0 h-full w-full cursor-default backdrop-blur-sm"
+            onClick={() => {
+              setShowGoalsModal(false);
+              setIsCreatingGoal(false);
+              setEditingGoalId(null);
+            }}
           />
-          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl">
+          
+          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl animate-in slide-in-from-bottom duration-300">
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
             
             <div className="p-6">
-              <div className="mb-6 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  {isCreatingGoal ? "Create Goal" : "Your Goals"}
+              <header className="mb-6 flex items-center justify-between">
+                <h2 className="text-xl font-bold text-slate-900">
+                  {editingGoalId ? "Edit Goal" : isCreatingGoal ? "New Goal" : "Your Goals"}
                 </h2>
                 <button
-                  type="button"
-                  onClick={() => setShowGoalsModal(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  aria-label="Close"
+                  onClick={() => {
+                    setShowGoalsModal(false);
+                    setIsCreatingGoal(false);
+                    setEditingGoalId(null);
+                  }}
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-slate-400"
                 >
-                  <X className="h-4 w-4" />
+                  <X size={20} />
                 </button>
-              </div>
+              </header>
 
-              <div className="min-h-[300px]">
+              <div className="max-h-[60vh] overflow-y-auto pr-1">
                 {loadingGoals ? (
-                  <div className="flex h-64 items-center justify-center">
+                  <div className="flex h-40 flex-col items-center justify-center">
                     <div className="h-8 w-8 animate-spin rounded-full border-4 border-violet-100 border-t-violet-600" />
                   </div>
-                ) : isCreatingGoal ? (
-                  <form onSubmit={handleCreateGoal} className="space-y-4">
+                ) : isCreatingGoal || editingGoalId ? (
+                  /* --- SHARED FORM FOR CREATE & EDIT --- */
+                  <form onSubmit={editingGoalId ? handleUpdateGoal : handleCreateGoal} className="space-y-4">
                     <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Goal Name</label>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">Goal Name</label>
                       <input
-                        type="text"
-                        placeholder="e.g. New Car, Holiday"
+                        placeholder="e.g. Porsche 911"
                         value={newGoal.name}
-                        onChange={(e) => setNewGoal(prev => ({ ...prev, name: e.target.value }))}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-violet-500 focus:outline-none"
+                        onChange={(e) => setNewGoal({...newGoal, name: e.target.value})}
+                        className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                         required
                       />
                     </div>
                     <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Target Amount</label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">R</span>
-                        <input
-                          type="number"
-                          placeholder="0.00"
-                          value={newGoal.target_amount}
-                          onChange={(e) => setNewGoal(prev => ({ ...prev, target_amount: e.target.value }))}
-                          className="w-full rounded-2xl border border-slate-200 pl-8 pr-4 py-3 text-sm focus:border-violet-500 focus:outline-none"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="mb-1.5 block text-sm font-semibold text-slate-700">Target Date (Optional)</label>
+                      <label className="mb-1.5 block text-[10px] font-black uppercase tracking-widest text-slate-400">Target Amount (R)</label>
                       <input
-                        type="date"
-                        value={newGoal.target_date}
-                        onChange={(e) => setNewGoal(prev => ({ ...prev, target_date: e.target.value }))}
-                        className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm focus:border-violet-500 focus:outline-none"
+                        type="number"
+                        value={newGoal.target_amount}
+                        onChange={(e) => setNewGoal({...newGoal, target_amount: e.target.value})}
+                        className="w-full rounded-2xl border border-slate-100 bg-slate-50 p-4 text-sm font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                        required
                       />
                     </div>
                     
-                    <div className="pt-4 flex gap-3">
-                      {goals.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setIsCreatingGoal(false)}
-                          className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600"
-                        >
-                          Cancel
-                        </button>
-                      )}
+                    <div className="flex flex-col gap-3 pt-2">
                       <button
                         type="submit"
-                        disabled={loadingGoals}
-                        className="flex-1 rounded-2xl bg-violet-600 py-3 text-sm font-semibold text-white shadow-lg shadow-violet-200"
+                        className="w-full rounded-2xl bg-[#31005e] py-4 font-bold uppercase tracking-widest text-white shadow-lg transition-active active:scale-95"
                       >
-                        Create Goal
+                        {editingGoalId ? "Update Goal" : "Save Goal"}
                       </button>
+                      
+                      {editingGoalId && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteGoal(editingGoalId)} // FIX: Link the function here
+                          className="w-full rounded-2xl bg-rose-50 py-4 text-xs font-bold uppercase tracking-widest text-rose-600 transition-active active:scale-95"
+                        >
+                          Delete Goal
+                        </button>
+                      )}
                     </div>
                   </form>
                 ) : (
+                  /* --- GOALS LIST --- */
                   <div className="space-y-4">
                     {goals.map((goal) => (
-                      <div key={goal.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                        <div className="mb-2 flex items-start justify-between">
+                      <div key={goal.id} className="group relative rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:shadow-md">
+                        <div className="mb-3 flex items-start justify-between">
                           <div>
-                            <h3 className="font-semibold text-slate-900">{goal.name}</h3>
-                            <p className="text-xs text-slate-500">
+                            <h3 className="font-bold text-slate-900">{goal.name}</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                               Target: R{Number(goal.target_amount).toLocaleString()}
                             </p>
                           </div>
-                          <div className="rounded-full bg-white p-2 shadow-sm">
-                            <Target className="h-5 w-5 text-violet-600" />
+                          <button 
+                            onClick={() => handleEditClick(goal)}
+                            className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 hover:bg-violet-50 hover:text-violet-600"
+                          >
+                            <FileSignature size={18} />
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
+                            <span className="text-violet-600">{Math.round(goal.progress_percent || 0)}% Complete</span>
+                            <span className="text-slate-300">R{(goal.target_amount - (goal.current_amount || 0)).toLocaleString()} Left</span>
                           </div>
-                        </div>
-                        <div className="mb-1 flex items-end justify-between text-xs">
-                          <span className="font-medium text-slate-700">
-                            {Number(goal.progress_percent || 0).toFixed(0)}%
-                          </span>
-                          <span className="text-slate-500">
-                            R{Number(goal.current_amount || 0).toLocaleString()} saved
-                          </span>
-                        </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-white">
-                          <div 
-                            className="h-full rounded-full bg-violet-500 transition-all duration-500"
-                            style={{ width: `${Math.min(100, goal.progress_percent || 0)}%` }}
-                          />
+                          <div className="h-2.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-violet-600 to-purple-500 rounded-full transition-all duration-1000"
+                              style={{ width: `${goal.progress_percent || 0}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
-                    
+
                     <button
                       onClick={() => setIsCreatingGoal(true)}
-                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 py-4 text-sm font-semibold text-slate-500 transition-all hover:border-violet-300 hover:bg-violet-50 hover:text-violet-600"
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-4 text-sm font-bold text-slate-400 transition-all hover:border-violet-300 hover:bg-violet-50 active:scale-95"
                     >
-                      <Plus className="h-4 w-4" />
-                      Add New Goal
+                      <Plus size={18} />
+                      <span>Add New Goal</span>
                     </button>
                   </div>
                 )}
@@ -858,6 +960,8 @@ const HomePage = ({
     </div>
   );
 };
+
+/* --- HELPER FUNCTIONS --- */
 
 function formatDate(dateString) {
   if (!dateString) return "";
