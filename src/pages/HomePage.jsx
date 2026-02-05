@@ -41,10 +41,7 @@ const HomePage = ({
   onOpenActions,
   onOpenInvestments,
   onOpenCredit,
-  onOpenCreditApply,
-  onOpenCreditRepay,
   onOpenInvest,
-  onOpenWithdraw,
   onOpenSettings,
   onOpenStrategies,
   onOpenMarkets,
@@ -346,16 +343,32 @@ const HomePage = ({
       <div className="mx-auto -mt-10 flex w-full max-w-sm flex-col gap-6 px-4 pb-10 md:max-w-md md:px-8">
         <section className="grid grid-cols-4 gap-3 text-[11px] font-medium">
           {[
-            { label: <>Open<br />Strategies</>, icon: LayoutGrid, onClick: onOpenStrategies || onOpenInvest },
-            { label: "Markets", icon: TrendingUp, onClick: onOpenMarkets || onOpenInvest },
-            { label: "News", icon: Newspaper, onClick: onOpenNews || onOpenInvest },
-            { label: "Goals", icon: Target, onClick: () => setShowGoalsModal(true) },
+            { 
+              label: <>Open<br />Strategies</>, 
+              icon: LayoutGrid, 
+              onClick: () => (onOpenStrategies ? onOpenStrategies("openstrategies") : onOpenInvest("openstrategies")) 
+            },
+            { 
+              label: "Markets", 
+              icon: TrendingUp, 
+              onClick: () => (onOpenMarkets ? onOpenMarkets("invest") : onOpenInvest("invest")) 
+            },
+            { 
+              label: "News", 
+              icon: Newspaper, 
+              onClick: () => (onOpenNews ? onOpenNews("news") : onOpenInvest("news")) 
+            },
+            { 
+              label: "Goals", 
+              icon: Target, 
+              onClick: () => setShowGoalsModal(true) 
+            },
           ].map((item, index) => {
             const Icon = item.icon;
             return (
               <button
                 key={index}
-                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md"
+                className="flex flex-col items-center gap-2 rounded-2xl bg-white px-2 py-3 text-slate-700 shadow-md transition-all active:scale-95 active:shadow-sm"
                 type="button"
                 onClick={item.onClick}
               >
@@ -367,6 +380,7 @@ const HomePage = ({
             );
           })}
         </section>
+        
 
         {outstandingActions.length > 0 ? (
           <OutstandingActionsSection
@@ -392,7 +406,7 @@ const HomePage = ({
             </div>
             {hasInvestments && (
               <button 
-                onClick={onOpenInvest} 
+                onClick={() => onOpenInvest("invest")}
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
               >
                 View all
@@ -449,7 +463,7 @@ const HomePage = ({
               <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
               <button
                 type="button"
-                onClick={onOpenInvest}
+                onClick={() => onOpenInvest("invest")}
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Make your first investment
@@ -474,7 +488,7 @@ const HomePage = ({
             </div>
             {hasStrategies && (
               <button 
-                onClick={onOpenInvest} 
+              onClick={() => onOpenStrategies("openstrategies")}  
                 className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
               >
                 View all
@@ -518,7 +532,7 @@ const HomePage = ({
               <p className="text-xs text-slate-500 mb-4">Explore our curated investment portfolios</p>
               <button
                 type="button"
-                onClick={onOpenInvest}
+                onClick={() => onOpenStrategies("openstrategies")}
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Browse Strategies
@@ -540,7 +554,7 @@ const HomePage = ({
               </div>
             </div>
             <button 
-              onClick={() => onOpenNews()} // Opens the full list
+              onClick={() => onOpenNews("news")}
               className="mb-1 text-xs font-semibold text-violet-600 active:opacity-70"
             >
               View all
@@ -585,7 +599,7 @@ const HomePage = ({
             )}
           </div>
         </section>
-        
+
         {transactionHistory.length > 0 ? (
           <TransactionHistorySection items={transactionHistory} onViewAll={onOpenActivity} />
         ) : (
