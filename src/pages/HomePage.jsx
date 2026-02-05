@@ -312,13 +312,14 @@ const HomePage = ({
                 </button>
                 <button
                   type="button"
-                  onClick={onOpenCredit}
+                  onClick={onOpenCredit} // This will now trigger navigateTo('credit') from App.jsx
                   className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 >
                   Credit
                 </button>
                 <button
                   type="button"
+                  onClick={() => onOpenInvest("transact")} // Transact often lives under the main navigation
                   className="rounded-full px-3 py-1.5 text-xs font-semibold text-white/70 transition-all hover:bg-white/10 hover:text-white"
                 >
                   Transact

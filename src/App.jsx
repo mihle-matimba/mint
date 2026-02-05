@@ -6,7 +6,7 @@ import SwipeBackWrapper from "./components/SwipeBackWrapper.jsx";
 
 import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
-import CreditPage from "./pages/CreditPage.jsx";
+import CreditPage from "./pages/CreditComingSoonPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
@@ -19,7 +19,7 @@ import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
-import TransactPage from "./pages/TransactPage.jsx";
+import TransactPage from "./pages/TransactComingSoonPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import BiometricsDebugPage from "./pages/BiometricsDebugPage.jsx";
