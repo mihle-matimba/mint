@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
+import { useSumsubStatus } from "../lib/useSumsubStatus";
 import { useFinancialData, useInvestments, useCreditInfo } from "../lib/useFinancialData";
 import HomeSkeleton from "../components/HomeSkeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
@@ -40,7 +41,8 @@ const HomePage = ({
   onOpenSettings,
 }) => {
   const { profile, loading } = useProfile();
-  const { kycVerified, bankLinked, bankSnapshotExists, loading: actionsLoading } = useRequiredActions();
+  const { bankLinked, bankSnapshotExists, loading: actionsLoading } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading: kycLoading } = useSumsubStatus();
   const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
   const { availableCreditCombined } = useCreditInfo();
   const { monthlyChangePercent } = useInvestments();
@@ -56,7 +58,7 @@ const HomePage = ({
     .join("")
     .toUpperCase();
 
-  if (loading || financialLoading) {
+  if (loading || financialLoading || actionsLoading || kycLoading) {
     return <HomeSkeleton />;
   }
 
@@ -88,13 +90,23 @@ const HomePage = ({
     }
   };
 
+  const getKycStatus = () => {
+    if (kycVerified) return { text: "Verified", style: "bg-green-100 text-green-600" };
+    if (kycNeedsResubmission) return { text: "Needs Attention", style: "bg-amber-100 text-amber-700" };
+    if (kycPending) return { text: "Pending", style: "bg-blue-100 text-blue-600" };
+    return { text: "Not Verified", style: "bg-slate-100 text-slate-500" };
+  };
+
+  const kycStatus = getKycStatus();
+
   const actionsData = [
     {
       id: "identity",
       title: "Complete KYC verification",
-      description: "Verify your identity to unlock all features",
+      description: kycNeedsResubmission ? "Some documents need resubmission" : "Verify your identity to unlock all features",
       priority: 1,
-      status: kycVerified ? "Verified" : "Not Verified",
+      status: kycStatus.text,
+      statusStyle: kycStatus.style,
       icon: ShieldCheck,
       routeName: "actions",
       isComplete: kycVerified,
