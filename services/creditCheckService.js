@@ -345,37 +345,93 @@ function buildCreditCheckXML(userData) {
  */
 async function parseExperianResponse(soapResponse) {
     const parser = new xml2js.Parser({ explicitArray: false });
-    
+
+    const findRetdata = (node, depth = 0) => {
+        if (!node || depth > 6) {
+            return null;
+        }
+
+        if (typeof node === 'string') {
+            return null;
+        }
+
+        for (const [key, value] of Object.entries(node)) {
+            if (typeof value === 'string' && /retdata/i.test(key)) {
+                return value.trim();
+            }
+
+            if (value && typeof value === 'object') {
+                const found = findRetdata(value, depth + 1);
+                if (found) {
+                    return found;
+                }
+            }
+        }
+
+        return null;
+    };
+
+    const extractSoapFault = (body) => {
+        const fault = body?.['soapenv:Fault'] || body?.['S:Fault'] || body?.['Fault'];
+        if (!fault) {
+            return null;
+        }
+
+        const faultString =
+            fault.faultstring ||
+            fault['faultstring'] ||
+            fault?.Reason?.Text ||
+            fault?.Reason?.['Text'] ||
+            fault?.['env:Reason']?.['env:Text'] ||
+            fault?.detail?.faultstring;
+
+        const faultCode = fault.faultcode || fault?.Code?.Value || fault?.['Code']?.['Value'];
+
+        return {
+            faultCode,
+            faultString
+        };
+    };
+
     try {
         const result = await parser.parseStringPromise(soapResponse);
-        
+
         // Navigate through SOAP envelope to find retdata
         // Handle different namespace prefixes (soapenv: or S:)
         const envelope = result['soapenv:Envelope'] || result['S:Envelope'] || result['Envelope'];
         if (!envelope) {
             throw new Error('No SOAP envelope found in response');
         }
-        
+
         const body = envelope['soapenv:Body'] || envelope['S:Body'] || envelope['Body'];
         if (!body) {
             throw new Error('No SOAP body found in response');
         }
-        
-        const response = body['ns2:DoNormalEnquiryResponse'] || 
-                        body['web:DoNormalEnquiryResponse'] || 
+
+        const fault = extractSoapFault(body);
+        if (fault) {
+            const message = fault.faultString ? `SOAP fault: ${fault.faultString}` : 'SOAP fault returned by Experian';
+            const error = new Error(message);
+            error.code = fault.faultCode;
+            throw error;
+        }
+
+        const response = body['ns2:DoNormalEnquiryResponse'] ||
+                        body['web:DoNormalEnquiryResponse'] ||
                         body['DoNormalEnquiryResponse'];
-        
+
         if (!response) {
             throw new Error('No DoNormalEnquiryResponse found in response');
         }
-        
-        const transReply = response['TransReplyClass'] || response['return'];
-        const retdata = transReply?.retData || transReply?.retdata;
-        
+
+        const transReply = response['TransReplyClass'] || response['return'] || response?.['ns2:return'];
+        const retdata = (transReply?.retData || transReply?.retdata || findRetdata(response) || findRetdata(transReply));
+
         if (!retdata) {
-            throw new Error('No retdata found in response');
+            const responseKeys = Object.keys(response || {}).slice(0, 10).join(', ');
+            throw new Error(`No retdata found in response. Response keys: ${responseKeys || 'none'}`);
         }
-        
+
         return retdata;
     } catch (error) {
         console.error('Error parsing Experian response:', error);
