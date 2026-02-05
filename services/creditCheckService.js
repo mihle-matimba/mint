@@ -14,8 +14,8 @@ const DATA_FILE = path.join(DATA_DIR, 'credit-checks.json');
 // Experian API Configuration
 const EXPERIAN_CONFIG = {
     url: process.env.EXPERIAN_URL || 'https://apis.experian.co.za/NormalSearchService',
-    username: process.env.EXPERIAN_USERNAME || '32389-api',
-    password: process.env.EXPERIAN_PASSWORD || '9N=v@ZQapik1',
+    username: process.env.EXPERIAN_USERNAME||'32389-api',
+    password: process.env.EXPERIAN_PASSWORD||'9N=v@ZQapik1',
     version: process.env.EXPERIAN_VERSION || '1.0',
     origin: process.env.EXPERIAN_ORIGIN || 'Zwane',
     origin_version: process.env.EXPERIAN_ORIGIN_VERSION || '0.0.1',
@@ -273,6 +273,8 @@ function buildCreditCheckXML(userData) {
         passport_flag = 'N'
     } = userData;
 
+    const safeClientRef = String(client_ref || '').slice(0, 20);
+
     return `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://webServices/">
    <soapenv:Header/>
@@ -329,7 +331,7 @@ function buildCreditCheckXML(userData) {
 <Enq_Purpose>12</Enq_Purpose>
 <Run_CompuScore>Y</Run_CompuScore>
 <ClientConsent>Y</ClientConsent>
-<ClientRef>${client_ref}</ClientRef>
+<ClientRef>${safeClientRef}</ClientRef>
 </Search_Criteria>
 </Transactions>]]></pTransaction>
          </request>
