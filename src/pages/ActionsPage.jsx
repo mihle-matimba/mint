@@ -12,8 +12,9 @@ import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
 
 const ActionsPage = ({ onBack, onNavigate }) => {
-  const { bankLinked, bankInReview } = useRequiredActions();
-  const { kycVerified, kycPending, kycNeedsResubmission, loading, rejectLabels } = useSumsubStatus();
+  const { bankLinked, bankInReview, bankSnapshotExists, loading: actionsLoading } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading: kycLoading, rejectLabels } = useSumsubStatus();
+  const loading = actionsLoading || kycLoading;
 
   if (loading) {
     return <ActionsSkeleton />;
@@ -64,15 +65,19 @@ const ActionsPage = ({ onBack, onNavigate }) => {
       completed: kycVerified,
       navigateTo: "identityCheck",
     },
-    {
-      id: "bank-link",
-      title: "Link your primary bank",
-      description: "Connect to enable instant transfers",
-      status: getBankStatus(),
-      icon: Landmark,
-      completed: bankLinked,
-      navigateTo: "creditApply",
-    },
+    ...(bankSnapshotExists
+      ? []
+      : [
+          {
+            id: "bank-link",
+            title: "Link your primary bank",
+            description: "Connect to enable instant transfers",
+            status: getBankStatus(),
+            icon: Landmark,
+            completed: bankLinked,
+            navigateTo: "creditApply",
+          },
+        ]),
     {
       id: "invite",
       title: "Invite a friend",

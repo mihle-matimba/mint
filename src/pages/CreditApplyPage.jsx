@@ -17,6 +17,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
   const collectionIdRef = useRef(null);
   const pollingRef = useRef(null);
    const lastStatusRef = useRef(null);
+   const popupRef = useRef(null);
 
   const addLog = (msg) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
 
@@ -54,6 +55,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
        );
 
        if (!popup) throw new Error("Popup blocked. Please allow popups for banking connection.");
+       popupRef.current = popup;
        
        setMessage("Complete the process in the popup window...");
        setStatus("polling");
@@ -95,6 +97,7 @@ const ConnectionStage = ({ onComplete, onError }) => {
               setStatus("capturing");
               setMessage("Analyzing banking data...");
               addLog("Status Success. Starting Capture...");
+
               
               // Capture Data
               try {
@@ -124,7 +127,12 @@ const ConnectionStage = ({ onComplete, onError }) => {
                       throw new Error(captureData.error || "Capture failed");
                   }
 
-                  setStatus("success");
+                           if (popupRef.current && !popupRef.current.closed) {
+                              popupRef.current.close();
+                              popupRef.current = null;
+                           }
+
+                           setStatus("success");
                   setMessage("Banking data verified successfully.");
                   addLog("Capture Success! Saved Snapshot:");
                   addLog(JSON.stringify(captureData.snapshot, null, 2));
@@ -366,7 +374,7 @@ const EnrichmentStage = ({ onSubmit, defaultValues, employerOptions, employerLoc
 
 
 // Stage 3: Results
-const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAssessment, onContinue }) => {
+const ResultStage = ({ score, isCalculating, breakdown, engineResult, engineError, onRunAssessment, onContinue }) => {
       const [showAllData, setShowAllData] = useState(false);
       const [loaderValue, setLoaderValue] = useState(0);
 
@@ -638,6 +646,11 @@ const ResultStage = ({ score, isCalculating, breakdown, engineResult, onRunAsses
                               {isDeclined ? "Loan declined" : "Continue to loan configuration"}
                            </button>
                         )}
+                        {engineError && (
+                           <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[11px] font-semibold text-rose-700">
+                              Experian log: {engineError}
+                           </div>
+                        )}
                      </div>
                   )}
             </MintCard>
@@ -656,12 +669,13 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
    const [showDetails, setShowDetails] = useState(false);
   
   // Real Hook Integration
-  const { 
+   const { 
     form: checkForm, 
     setField, 
     runEngine, 
     engineResult, 
     engineStatus, 
+      engineError,
     employerCsv,
     lockInputs,
     snapshot,
@@ -991,11 +1005,12 @@ const CreditApplyWizard = ({ onBack, onComplete }) => {
                          yearsLocked={yearsAtEmployerLocked}
                       />;
             case 3:
-          return <ResultStage 
+             return <ResultStage 
              score={score} 
              isCalculating={isCalculating} 
              breakdown={engineResult?.breakdown} 
                 engineResult={engineResult}
+                engineError={engineError}
                 onRunAssessment={handleRunAssessment}
                 onContinue={onComplete}
                 />;

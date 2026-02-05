@@ -2,7 +2,7 @@ import React from "react";
 import { X } from "lucide-react";
 import Navbar from "../components/Navbar.jsx";
 
-const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal, onCloseModal, children }) => {
+const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal, onCloseModal, borrowLocked, children }) => {
   return (
     <div className="app-shell flex min-h-screen flex-col bg-white overflow-hidden">
       <main
@@ -44,6 +44,7 @@ const AppLayout = ({ activeTab, onTabChange, onWithdraw, onShowComingSoon, modal
           setActiveTab={onTabChange}
           onWithdraw={onWithdraw}
           onShowComingSoon={onShowComingSoon}
+          borrowLocked={borrowLocked}
           className="fixed bottom-0 left-0 w-full z-50"
         />
     </div>

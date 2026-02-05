@@ -22,8 +22,9 @@ const MorePage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState("");
-  const { bankLinked } = useRequiredActions();
+  const { bankLinked, bankSnapshotExists } = useRequiredActions();
   const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
+  const isBankLinked = bankLinked || bankSnapshotExists;
 
   const displayName = [profile?.first_name, profile?.last_name]
     .filter(Boolean)
@@ -256,12 +257,12 @@ const MorePage = ({ onNavigate }) => {
                 <span className="text-sm font-medium text-slate-700">Bank Account</span>
               </div>
               <span
-                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${bankLinked
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${isBankLinked
                   ? "bg-green-100 text-green-700"
                   : "bg-amber-100 text-amber-700"
                   }`}
               >
-                {bankLinked ? "Linked" : "Not Linked"}
+                {isBankLinked ? "Linked" : "Not Linked"}
               </span>
             </button>
           </div>

@@ -8,6 +8,7 @@ import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import CreditPage from "./pages/CreditPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
+import LoanConfigurationPage from "./pages/LoanConfigurationPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
 import InvestPage from "./pages/InvestPage.jsx";
@@ -80,6 +81,7 @@ const App = () => {
   const [selectedArticleId, setSelectedArticleId] = useState(null);
   const [investmentAmount, setInvestmentAmount] = useState(0);
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0 });
+  const [hasSubmittedLoan, setHasSubmittedLoan] = useState(false);
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
   
@@ -157,6 +159,35 @@ const App = () => {
 
     return () => window.cancelAnimationFrame(frame);
   }, [currentPage]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadSubmittedLoan = async () => {
+      if (!supabase) return;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
+
+      const { data, error } = await supabase
+        .from("loan_application")
+        .select("id, status")
+        .eq("user_id", userId)
+        .in("status", ["submitted", "Submitted"])
+        .order("updated_at", { ascending: false })
+        .limit(1);
+
+      if (isMounted) {
+        setHasSubmittedLoan(!error && (data?.length ?? 0) > 0);
+      }
+    };
+
+    loadSubmittedLoan();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentPage, sessionReady]);
 
   useEffect(() => {
     if (hasError) {
@@ -290,6 +321,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <HomePage
           onOpenNotifications={() => {
@@ -304,6 +336,7 @@ const App = () => {
           onOpenCreditApply={() => navigateTo("creditApply")}
           onOpenCreditRepay={() => navigateTo("creditRepay")}
           onOpenInvest={() => navigateTo("markets")}
+          onOpenMarkets={() => navigateTo("markets")}
           onOpenWithdraw={handleWithdrawRequest}
           onOpenSettings={() => navigateTo("settings")}
         />
@@ -319,37 +352,35 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <CreditPage
           onOpenNotifications={() => {
             setNotificationReturnPage("credit");
             navigateTo("notifications");
           }}
-          onOpenCreditApply={() => navigateTo("creditApply")}
+          onOpenTruID={() => navigateTo("creditApply")}
         />
       </AppLayout>
     );
   }
-  
-  if (currentPage === "creditScore") {
+
+  if (currentPage === "creditApply") {
     return (
-      <AppLayout
-        activeTab="credit"
-        onTabChange={setCurrentPage}
-        onWithdraw={handleWithdrawRequest}
-        onShowComingSoon={handleShowComingSoon}
-        modal={modal}
-        onCloseModal={closeModal}
-      >
-        <CreditPage
-          initialView="score"
-          onOpenNotifications={() => {
-            setNotificationReturnPage("credit");
-            setCurrentPage("notifications");
-          }}
-          onOpenCreditApply={() => setCurrentPage("creditApply")}
-        />
-      </AppLayout>
+      <CreditApplyPage
+        onBack={() => setCurrentPage("credit")}
+        onComplete={() => setCurrentPage("loanConfig")}
+      />
+    );
+  }
+
+  if (currentPage === "loanConfig") {
+    return (
+      <LoanConfigurationPage
+        onBack={() => setCurrentPage("creditApply")}
+        onBackToCredit={() => setCurrentPage("credit")}
+        onComplete={() => setCurrentPage("credit")}
+      />
     );
   }
 
@@ -362,6 +393,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <TransactPage />
       </AppLayout>
@@ -377,13 +409,14 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <InvestmentsPage
           onOpenNotifications={() => {
             setNotificationReturnPage("investments");
-            setCurrentPage("notifications");
+            navigateTo("notifications");
           }}
-          onOpenInvest={() => setCurrentPage("markets")}
+          onOpenInvest={() => navigateTo("invest")}
         />
       </AppLayout>
     );
@@ -399,6 +432,7 @@ const App = () => {
           onShowComingSoon={handleShowComingSoon}
           modal={modal}
           onCloseModal={closeModal}
+          borrowLocked={hasSubmittedLoan}
         >
           <InvestPage
             onBack={goBack}
@@ -572,6 +606,7 @@ const App = () => {
         onShowComingSoon={handleShowComingSoon}
         modal={modal}
         onCloseModal={closeModal}
+        borrowLocked={hasSubmittedLoan}
       >
         <MorePage onNavigate={navigateTo} />
       </AppLayout>
@@ -588,6 +623,7 @@ const App = () => {
           onShowComingSoon={handleShowComingSoon}
           modal={modal}
           onCloseModal={closeModal}
+          borrowLocked={hasSubmittedLoan}
         >
           <SettingsPage onNavigate={navigateTo} onBack={goBack} />
         </AppLayout>
@@ -605,6 +641,7 @@ const App = () => {
           onShowComingSoon={handleShowComingSoon}
           modal={modal}
           onCloseModal={closeModal}
+          borrowLocked={hasSubmittedLoan}
         >
           <BiometricsDebugPage onNavigate={navigateTo} onBack={goBack} />
         </AppLayout>
@@ -657,6 +694,7 @@ const App = () => {
           onShowComingSoon={handleShowComingSoon}
           modal={modal}
           onCloseModal={closeModal}
+          borrowLocked={hasSubmittedLoan}
         >
           <MintBalancePage
             onBack={goBack}
@@ -682,6 +720,7 @@ const App = () => {
           onShowComingSoon={handleShowComingSoon}
           modal={modal}
           onCloseModal={closeModal}
+          borrowLocked={hasSubmittedLoan}
         >
           <ActivityPage onBack={goBack} />
         </AppLayout>
@@ -726,14 +765,6 @@ const App = () => {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack}>
         <InvitePage onBack={goBack} />
-      </SwipeBackWrapper>
-    );
-  }
-
-  if (currentPage === "creditApply") {
-    return (
-      <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack}>
-        <CreditApplyPage onBack={goBack} />
       </SwipeBackWrapper>
     );
   }

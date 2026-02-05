@@ -19,7 +19,7 @@ import {
 import { useProfile } from "../lib/useProfile";
 import { useRequiredActions } from "../lib/useRequiredActions";
 import { useSumsubStatus } from "../lib/useSumsubStatus";
-import { useFinancialData, useInvestments } from "../lib/useFinancialData";
+import { useFinancialData, useInvestments, useCreditInfo } from "../lib/useFinancialData";
 import HomeSkeleton from "../components/HomeSkeleton";
 import SwipeableBalanceCard from "../components/SwipeableBalanceCard";
 import OutstandingActionsSection from "../components/OutstandingActionsSection";
@@ -36,13 +36,15 @@ const HomePage = ({
   onOpenCreditApply,
   onOpenCreditRepay,
   onOpenInvest,
+  onOpenMarkets,
   onOpenWithdraw,
   onOpenSettings,
 }) => {
   const { profile, loading } = useProfile();
-  const { bankLinked, loading: actionsLoading } = useRequiredActions();
-  const { kycVerified, kycPending, kycNeedsResubmission } = useSumsubStatus();
+  const { bankLinked, bankSnapshotExists, loading: actionsLoading } = useRequiredActions();
+  const { kycVerified, kycPending, kycNeedsResubmission, loading: kycLoading } = useSumsubStatus();
   const { balance, investments, transactions, bestAssets, loading: financialLoading } = useFinancialData();
+  const { availableCreditCombined } = useCreditInfo();
   const { monthlyChangePercent } = useInvestments();
   const [failedLogos, setFailedLogos] = useState({});
   const [showPayModal, setShowPayModal] = useState(false);
@@ -56,13 +58,35 @@ const HomePage = ({
     .join("")
     .toUpperCase();
 
-  if (loading || financialLoading) {
+  if (loading || financialLoading || actionsLoading || kycLoading) {
     return <HomeSkeleton />;
   }
 
   const handleMintBalancePress = () => {
     if (onOpenMintBalance) {
       onOpenMintBalance();
+    }
+  };
+
+  const handleOpenInvest = () => {
+    if (onOpenInvest) {
+      onOpenInvest();
+      return;
+    }
+
+    if (onOpenInvestments) {
+      onOpenInvestments();
+    }
+  };
+
+  const handleOpenMarkets = () => {
+    if (onOpenMarkets) {
+      onOpenMarkets();
+      return;
+    }
+
+    if (onOpenInvest) {
+      onOpenInvest();
     }
   };
 
@@ -94,10 +118,10 @@ const HomePage = ({
       title: "Link your bank account",
       description: "Connect to enable instant transfers",
       priority: 2,
-      status: bankLinked ? "Linked" : "Not Linked",
+      status: bankLinked || bankSnapshotExists ? "Linked" : "Not Linked",
       icon: Landmark,
       routeName: "actions",
-      isComplete: bankLinked,
+      isComplete: bankLinked || bankSnapshotExists,
       dueAt: "2025-01-22T12:00:00Z",
       createdAt: "2025-01-19T09:00:00Z",
     },
@@ -190,7 +214,7 @@ const HomePage = ({
           </header>
 
           <SwipeableBalanceCard
-            amount={balance}
+            amount={balance > 0 ? balance : (availableCreditCombined || 0)}
             totalInvestments={investments}
             investmentChange={monthlyChangePercent || 0}
             bestPerformingAssets={bestAssets}
@@ -205,7 +229,7 @@ const HomePage = ({
           {[
             { label: "Pay", icon: Wallet, onClick: () => setShowPayModal(true) },
             { label: "Receive", icon: HandCoins, onClick: () => setShowReceiveModal(true) },
-            { label: "Markets", icon: TrendingUp, onClick: onOpenInvest },
+            { label: "Markets", icon: TrendingUp, onClick: handleOpenMarkets },
             { label: "Withdraw", icon: ArrowDownToLine, onClick: onOpenWithdraw },
           ].map((item) => {
             const Icon = item.icon;
@@ -295,7 +319,7 @@ const HomePage = ({
               <p className="text-xs text-slate-500 mb-4">Start investing to see your best performing assets here</p>
               <button
                 type="button"
-                onClick={onOpenInvest}
+                onClick={handleOpenInvest}
                 className="inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-2.5 text-xs font-semibold uppercase tracking-[0.15em] text-white shadow-lg shadow-slate-900/20 transition hover:-translate-y-0.5"
               >
                 Make your first investment

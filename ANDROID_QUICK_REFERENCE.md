@@ -7,6 +7,7 @@
 - **After**: `(isNativeIOS() || isNativeAndroid())` → Biometrics on iOS + Android
 - **Files**: `src/components/AuthForm.jsx`, `src/lib/biometrics.js`
 
+
 ### 2. ✅ Added Biometric Permissions
 - Added `android.permission.USE_BIOMETRIC` (API 28+)
 - Added `android.permission.USE_FINGERPRINT` (fallback for API 23-27)

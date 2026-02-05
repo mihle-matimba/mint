@@ -97,7 +97,7 @@ export async function updateLoan(loanId, fields) {
     .from("loan_application")
     .update({
       ...fields,
-      updated_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
     })
     .eq("id", loanId)
     .select()
