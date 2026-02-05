@@ -735,19 +735,24 @@ const HomePage = ({
       )}
 
       {showGoalsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 px-4 pt-32">
+          {/* Backdrop Overlay */}
           <button
             type="button"
             className="absolute inset-0 h-full w-full cursor-default"
             aria-label="Close modal"
             onClick={() => setShowGoalsModal(false)}
           />
-          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl">
+          
+          {/* Modal Container */}
+          <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[32px] bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Grab Handle */}
             <div className="flex items-center justify-center pt-3">
               <div className="h-1.5 w-12 rounded-full bg-slate-200" />
             </div>
             
             <div className="p-6">
+              {/* Header */}
               <div className="mb-6 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-slate-900">
                   {isCreatingGoal ? "Create Goal" : "Your Goals"}
@@ -762,6 +767,7 @@ const HomePage = ({
                 </button>
               </div>
 
+              {/* Content Area */}
               <div className="min-h-[300px]">
                 {loadingGoals ? (
                   <div className="flex h-64 items-center justify-center">
