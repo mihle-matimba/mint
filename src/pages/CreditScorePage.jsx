@@ -81,6 +81,44 @@ const CreditScorePage = ({ onBack }) => {
     return Math.min(Math.max(percent, 0), 100);
   }, [hasScore, scoreSnapshot.score]);
 
+  const breakdownEntries = useMemo(() => {
+    if (!scoreBreakdown) return [];
+    const entries = Object.entries(scoreBreakdown);
+    const totalWeight = entries
+      .map(([, value]) => Number(value?.weightPercent) || 0)
+      .reduce((sum, value) => sum + value, 0);
+    const normalizedTotal = totalWeight > 0 ? totalWeight : 100;
+
+    return entries.map(([key, value]) => {
+      const contribution = Number(value?.contributionPercent);
+      const percent = Number.isFinite(contribution) && normalizedTotal > 0
+        ? (contribution / normalizedTotal) * 100
+        : null;
+
+      return {
+        key,
+        label: key.replace(/([A-Z])/g, " $1").trim(),
+        percent
+      };
+    });
+  }, [scoreBreakdown]);
+
+  const breakdownTotalPercent = useMemo(() => {
+    if (!scoreBreakdown) return null;
+    const entries = Object.values(scoreBreakdown);
+    const totalWeight = entries
+      .map((value) => Number(value?.weightPercent) || 0)
+      .reduce((sum, value) => sum + value, 0);
+    const normalizedTotal = totalWeight > 0 ? totalWeight : 100;
+    const totalContribution = entries
+      .map((value) => Number(value?.contributionPercent) || 0)
+      .reduce((sum, value) => sum + value, 0);
+
+    if (normalizedTotal <= 0) return null;
+    const percent = (totalContribution / normalizedTotal) * 100;
+    return Number.isFinite(percent) ? percent : null;
+  }, [scoreBreakdown]);
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 pb-[env(safe-area-inset-bottom)] pt-10 text-slate-900 md:px-8">
       <div className="mx-auto flex w-full max-w-sm flex-col gap-6 md:max-w-md">
@@ -128,18 +166,22 @@ const CreditScorePage = ({ onBack }) => {
         <CreditMetricCard>
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold uppercase text-slate-400">Score breakdown</p>
-            <span className="text-[11px] font-semibold text-slate-500">100%</span>
+            <span className="text-[11px] font-semibold text-slate-500">
+              {Number.isFinite(breakdownTotalPercent)
+                ? `${breakdownTotalPercent.toFixed(1)}%`
+                : "100%"}
+            </span>
           </div>
           <div className="mt-4 space-y-3">
-            {scoreBreakdown ? (
-              Object.entries(scoreBreakdown).map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
+            {breakdownEntries.length > 0 ? (
+              breakdownEntries.map((item) => (
+                <div key={item.key} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3">
                   <p className="text-sm font-semibold text-slate-700">
-                    {key.replace(/([A-Z])/g, " $1").trim()}
+                    {item.label}
                   </p>
                   <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-600 shadow-sm">
-                    {Number.isFinite(value?.contributionPercent)
-                      ? `${(value.contributionPercent * 100).toFixed(1)}%`
+                    {Number.isFinite(item.percent)
+                      ? `${item.percent.toFixed(1)}%`
                       : "—"}
                   </span>
                 </div>

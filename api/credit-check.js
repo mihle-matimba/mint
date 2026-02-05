@@ -309,6 +309,19 @@ export default async function handler(req, res) {
     const success = result?.success === true;
     const ok = success;
 
+    const engineResultPayload = {
+      ...result,
+      success,
+      ok,
+      creditScore: creditScoreValue,
+      breakdown,
+      creditExposure,
+      scoreReasons,
+      loanEngineScore,
+      loanEngineScoreMax,
+      loanEngineScoreNormalized
+    };
+
     if (supabase && userId && userId !== 'anon-dev') {
       try {
         const dbClient = accessToken
@@ -358,7 +371,7 @@ export default async function handler(req, res) {
             ? accountMetrics.openAccounts
             : null,
           score_reasons: scoreReasons,
-          engine_result: result
+          engine_result: engineResultPayload
         };
 
         const { error: insertError } = await dbClient
