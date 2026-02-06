@@ -174,20 +174,36 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [draftTimeHorizon, setDraftTimeHorizon] = useState(new Set());
   const [draftStrategySectors, setDraftStrategySectors] = useState(new Set());
 
-  const holdingsBySymbol = useMemo(
-    () => new Map(holdingsSecurities.map((security) => [security.symbol, security])),
-    [holdingsSecurities],
-  );
+  const normalizeSymbol = (symbol) => {
+    if (typeof symbol !== "string") return symbol;
+    const trimmed = symbol.trim();
+    if (!trimmed) return symbol;
+    return trimmed.split(".")[0].toUpperCase();
+  };
+
+  const holdingsBySymbol = useMemo(() => {
+    const map = new Map();
+    holdingsSecurities.forEach((security) => {
+      if (!security?.symbol) return;
+      map.set(security.symbol, security);
+      const normalized = normalizeSymbol(security.symbol);
+      if (normalized && normalized !== security.symbol) {
+        map.set(normalized, security);
+      }
+    });
+    return map;
+  }, [holdingsSecurities]);
   const previewGradientId = useId();
 
   const getStrategyHoldingsSnapshot = (strategy) => {
     if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return [];
     return strategy.holdings.map((holding) => {
-      const symbol = holding.ticker || holding.symbol || holding;
-      const security = holdingsBySymbol.get(symbol);
+      const rawSymbol = holding.ticker || holding.symbol || holding;
+      const normalizedSymbol = normalizeSymbol(rawSymbol);
+      const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSymbol);
       return {
-        symbol,
-        name: security?.name || symbol,
+        symbol: rawSymbol,
+        name: security?.name || rawSymbol,
         logo_url: security?.logo_url || null,
       };
     });
@@ -277,7 +293,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         const allTickers = [...new Set(
           strategySources
             .filter(s => s.holdings && Array.isArray(s.holdings))
-            .flatMap(s => s.holdings.map(h => h.ticker || h.symbol || h))
+            .flatMap((s) => s.holdings.flatMap((h) => {
+              const rawSymbol = h.ticker || h.symbol || h;
+              const normalizedSymbol = normalizeSymbol(rawSymbol);
+              return normalizedSymbol && normalizedSymbol !== rawSymbol
+                ? [rawSymbol, normalizedSymbol]
+                : [rawSymbol];
+            }))
         )];
         
         if (allTickers.length === 0) return;
@@ -514,13 +536,17 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     return "—";
   };
 
-  const getHoldingSymbol = (holding) => holding?.ticker || holding?.symbol || holding;
+  const getHoldingSymbol = (holding) => {
+    const rawSymbol = holding?.ticker || holding?.symbol || holding;
+    return normalizeSymbol(rawSymbol);
+  };
 
   const getHoldingsMinInvestment = (strategy) => {
     if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
     const totalCents = strategy.holdings.reduce((sum, holding) => {
+      const rawSymbol = holding?.ticker || holding?.symbol || holding;
       const symbol = getHoldingSymbol(holding);
-      const security = holdingsBySymbol.get(symbol);
+      const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(symbol);
       const lastPrice = security?.last_price;
       const shares = Number(holding?.shares);
       if (!Number.isFinite(shares) || shares <= 0 || lastPrice == null) return sum;
