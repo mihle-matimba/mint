@@ -234,7 +234,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   };
   
   // News pagination
-  const [newsPage, setNewsPage] = useState(1);
+  const [securitiesPage, setSecuritiesPage] = useState(1);
   const newsPerPage = 10;
 
   useEffect(() => {
