@@ -217,6 +217,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       const normalizedSymbol = normalizeSymbol(rawSymbol);
       const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSymbol);
       return {
+        id: security?.id || null,
         symbol: rawSymbol,
         name: security?.name || rawSymbol,
         logo_url: security?.logo_url || null,
@@ -320,7 +321,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, logo_url, name, currency, last_price")
+          .select("id, symbol, logo_url, name, currency, last_price")
           .in("symbol", allTickers);
 
         if (!error && data) {
@@ -1443,10 +1444,6 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                       const sparkline = generateSparkline(0);
                       
                       const holdingsSnapshot = getStrategyHoldingsSnapshot(strategy);
-                      const holdingsList = holdingsSnapshot
-                        .slice(0, 3)
-                        .map((holding) => holding.name || holding.symbol)
-                        .filter(Boolean);
                       
                       return (
                       <button
@@ -1494,18 +1491,12 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           )}
                         </div>
 
-                        {holdingsList.length > 0 && (
-                          <p className="mt-2 text-xs font-medium text-slate-500">
-                            Top holdings: {holdingsList.join(" · ")}
-                          </p>
-                        )}
-
                         {holdingsSnapshot.length > 0 && (
                           <div className="mt-3 flex items-center gap-3">
                             <div className="flex -space-x-2">
                               {holdingsSnapshot.slice(0, 3).map((holding) => (
                                 <div
-                                  key={`${displayName}-${holding.symbol}-snapshot`}
+                                  key={`${displayName}-${holding.id || holding.symbol}-snapshot`}
                                   className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
                                 >
                                   {holding.logo_url ? (
