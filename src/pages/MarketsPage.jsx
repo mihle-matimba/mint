@@ -161,14 +161,22 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
   const toggleWatchlist = async (e, symbol) => {
     e.stopPropagation(); 
+    
+    // DEBUGGING: Check what is missing
+    console.log("Attempting to toggle:", symbol);
+    if (!profile) console.error("Profile is null");
+    else if (!profile.id) console.error("Profile ID is missing! Check useProfile.js");
+    
     if (!profile?.id) return;
 
+    // Optimistic update
     const isWatched = watchlist.includes(symbol);
     const newWatchlist = isWatched
       ? watchlist.filter((t) => t !== symbol)
       : [...watchlist, symbol];
 
     setWatchlist(newWatchlist);
+    console.log("Sending update to DB:", newWatchlist);
 
     const { error } = await supabase
       .from('profiles')
@@ -176,8 +184,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       .eq('id', profile.id);
 
     if (error) {
-      console.error("Error updating watchlist:", error);
+      console.error("Database Error:", error);
       setWatchlist(watchlist); // Revert on error
+    } else {
+      console.log("Success!");
     }
   };
   
