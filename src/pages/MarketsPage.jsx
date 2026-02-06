@@ -284,7 +284,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, logo_url, name, currency, security_metrics(last_close)")
+          .select("symbol, logo_url, name, currency, last_price")
           .in("symbol", allTickers);
 
         if (!error && data) {
@@ -518,21 +518,15 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
   const getHoldingsMinInvestment = (strategy) => {
     if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
-    const total = strategy.holdings.reduce((sum, holding) => {
+    const totalCents = strategy.holdings.reduce((sum, holding) => {
       const symbol = getHoldingSymbol(holding);
-      const security = holdingsSecurities.find((s) => s.symbol === symbol);
-      const metrics = Array.isArray(security?.security_metrics)
-        ? security.security_metrics[0]
-        : security?.security_metrics;
-      const lastClose = metrics?.last_close;
-      if (lastClose == null) return sum;
-      const currency = security?.currency || "R";
-      const normalizedPrice = currency.toUpperCase() === "ZAC"
-        ? Number(lastClose) / 100
-        : Number(lastClose);
-      return sum + (Number.isFinite(normalizedPrice) ? normalizedPrice : 0);
+      const security = holdingsBySymbol.get(symbol);
+      const lastPrice = security?.last_price;
+      const shares = Number(holding?.shares);
+      if (!Number.isFinite(shares) || shares <= 0 || lastPrice == null) return sum;
+      return sum + (Number(lastPrice) * shares);
     }, 0);
-    return total > 0 ? total : null;
+    return totalCents > 0 ? totalCents / 100 : null;
   };
 
   useEffect(() => {
