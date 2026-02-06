@@ -394,6 +394,21 @@ const App = () => {
             />
           </AppLayout>
         );
+        
+      case 'statements':
+        return (
+          <AppLayout
+            activeTab="statements"
+            onTabChange={noOp}
+            onWithdraw={noOp}
+            onShowComingSoon={noOp}
+            modal={null}
+            onCloseModal={noOp}
+          >
+            <StatementsPage />
+          </AppLayout>
+        );
+
       case 'investments':
         return (
           <AppLayout
@@ -1007,6 +1022,21 @@ const App = () => {
           <BiometricsDebugPage onNavigate={navigateTo} onBack={goBack} />
         </AppLayout>
       </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "statements") {
+    return (
+      <AppLayout
+        activeTab="statements"
+        onTabChange={setCurrentPage}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <StatementsPage />
+      </AppLayout>
     );
   }
 
