@@ -41,6 +41,7 @@ import IdentityCheckPage from "./pages/IdentityCheckPage.jsx";
 import BankLinkPage from "./pages/BankLinkPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
 import StatementsPage from "./pages/StatementsPage.jsx";
+import { useProfile } from "./lib/useProfile";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -70,6 +71,7 @@ const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
 const mainTabs = ['home', 'credit', 'transact', 'investments', 'statements', 'more', 'welcome', 'auth'];
 
 const App = () => {
+  const { profile } = useProfile();
   const [currentPage, setCurrentPage] = useState(hasError ? "linkExpired" : (isRecoveryMode ? "auth" : "welcome"));
   const [previousPageName, setPreviousPageName] = useState(null);
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
@@ -455,6 +457,7 @@ const App = () => {
             security={previewSecurity}
             onBack={noOp}
             onOpenBuy={noOp}
+            profile={profile}
           />
         );
       case 'stockBuy':
@@ -854,6 +857,7 @@ const App = () => {
           security={selectedSecurity}
           onBack={goBack}
           onOpenBuy={() => navigateTo("stockBuy")}
+          profile={profile}
         />
       </SwipeBackWrapper>
     );
