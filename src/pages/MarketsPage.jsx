@@ -181,6 +181,20 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     return trimmed.split(".")[0].toUpperCase();
   };
 
+  const getHoldingsArray = (strategy) => {
+    const holdings = strategy?.holdings;
+    if (Array.isArray(holdings)) return holdings;
+    if (typeof holdings === "string") {
+      try {
+        const parsed = JSON.parse(holdings);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const holdingsBySymbol = useMemo(() => {
     const map = new Map();
     holdingsSecurities.forEach((security) => {
@@ -196,8 +210,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const previewGradientId = useId();
 
   const getStrategyHoldingsSnapshot = (strategy) => {
-    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return [];
-    return strategy.holdings.map((holding) => {
+    const holdings = getHoldingsArray(strategy);
+    if (!holdings.length) return [];
+    return holdings.map((holding) => {
       const rawSymbol = holding.ticker || holding.symbol || holding;
       const normalizedSymbol = normalizeSymbol(rawSymbol);
       const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSymbol);
@@ -292,8 +307,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         // Get all unique ticker symbols from strategies if they have holdings
         const allTickers = [...new Set(
           strategySources
-            .filter(s => s.holdings && Array.isArray(s.holdings))
-            .flatMap((s) => s.holdings.flatMap((h) => {
+            .flatMap((strategy) => getHoldingsArray(strategy).flatMap((h) => {
               const rawSymbol = h.ticker || h.symbol || h;
               const normalizedSymbol = normalizeSymbol(rawSymbol);
               return normalizedSymbol && normalizedSymbol !== rawSymbol
@@ -542,8 +556,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   };
 
   const getHoldingsMinInvestment = (strategy) => {
-    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
-    const totalCents = strategy.holdings.reduce((sum, holding) => {
+    const holdings = getHoldingsArray(strategy);
+    if (!holdings.length) return null;
+    const totalCents = holdings.reduce((sum, holding) => {
       const rawSymbol = holding?.ticker || holding?.symbol || holding;
       const symbol = getHoldingSymbol(holding);
       const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(symbol);

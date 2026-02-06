@@ -287,6 +287,20 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
     return trimmed.split(".")[0].toUpperCase();
   };
 
+  const getHoldingsArray = (strategy) => {
+    const holdings = strategy?.holdings;
+    if (Array.isArray(holdings)) return holdings;
+    if (typeof holdings === "string") {
+      try {
+        const parsed = JSON.parse(holdings);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const holdingsBySymbol = useMemo(() => {
     const map = new Map();
     holdingsSecurities.forEach((security) => {
@@ -306,8 +320,9 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
   };
 
   const getHoldingsMinInvestment = (strategy) => {
-    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
-    const totalCents = strategy.holdings.reduce((sum, holding) => {
+    const holdings = getHoldingsArray(strategy);
+    if (!holdings.length) return null;
+    const totalCents = holdings.reduce((sum, holding) => {
       const rawSymbol = holding?.ticker || holding?.symbol || holding;
       const symbol = getHoldingSymbol(holding);
       const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(symbol);
@@ -350,8 +365,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
         // Get all unique tickers from all strategies
         const allTickers = [...new Set(
           strategies
-            .filter(s => s.holdings && Array.isArray(s.holdings))
-            .flatMap((s) => s.holdings.flatMap((h) => {
+            .flatMap((strategy) => getHoldingsArray(strategy).flatMap((h) => {
               const rawSymbol = h.ticker || h.symbol || h;
               const normalizedSymbol = normalizeSymbol(rawSymbol);
               return normalizedSymbol && normalizedSymbol !== rawSymbol
@@ -407,16 +421,15 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
     if (!normalizedQuery) return [];
     const suggestions = new Map();
     strategyData.forEach((strategy) => {
-      if (strategy.holdings && Array.isArray(strategy.holdings)) {
-        strategy.holdings.forEach((holding) => {
-          const rawSymbol = holding.ticker || holding.symbol || holding;
-          const normalizedSymbol = normalizeSymbol(rawSymbol);
-          const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSymbol);
-          if (security) {
-            const label = `${security.name} ${security.symbol}`;
-            if (
-              security.name.toLowerCase().includes(normalizedQuery) ||
-              security.symbol.toLowerCase().includes(normalizedQuery)
+      getHoldingsArray(strategy).forEach((holding) => {
+        const rawSymbol = holding.ticker || holding.symbol || holding;
+        const normalizedSymbol = normalizeSymbol(rawSymbol);
+        const security = holdingsBySymbol.get(rawSymbol) || holdingsBySymbol.get(normalizedSymbol);
+        if (security) {
+          const label = `${security.name} ${security.symbol}`;
+          if (
+            security.name.toLowerCase().includes(normalizedQuery) ||
+            security.symbol.toLowerCase().includes(normalizedQuery)
           ) {
             suggestions.set(security.symbol, {
               ticker: security.symbol,
@@ -425,7 +438,6 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
           }
         }
       });
-    }
     });
     return Array.from(suggestions.values());
   }, [normalizedQuery, holdingsSecurities, strategyData]);
@@ -438,11 +450,11 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
             (strategy.description && strategy.description.toLowerCase().includes(normalizedQuery))
           : true;
       const matchesHolding = selectedHolding
-          ? (strategy.holdings && strategy.holdings.some((h) => {
+        ? getHoldingsArray(strategy).some((h) => {
             const rawSymbol = h.ticker || h.symbol || h;
             const normalizedSymbol = normalizeSymbol(rawSymbol);
             return rawSymbol === selectedHolding || normalizedSymbol === selectedHolding;
-          }))
+          })
         : true;
       const matchesRisk = selectedRisks.size
         ? selectedRisks.has(strategy.risk_level || strategy.risk)
@@ -746,6 +758,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                 const changePct = strategy.change_pct;
                 const changeAbs = strategy.change_abs;
                 const hasMetrics = price !== null && price !== undefined;
+                const holdings = getHoldingsArray(strategy);
                 
                 const minInvestmentValue = getMinInvestmentValue(strategy);
                 const minInvestmentText = minInvestmentValue != null
@@ -796,7 +809,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                     ))}
                   </div>
 
-                  {strategy.holdings && strategy.holdings.length > 0 && (
+                  {holdings.length > 0 && (
                   <div className="mt-3 flex items-center gap-3">
                     <div className="flex -space-x-2">
                       {holdingsSecurities.slice(0, 3).map((company) => (
@@ -818,7 +831,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                         </div>
                       ))}
                       <div className="flex h-7 w-7 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[10px] font-semibold text-slate-500">
-                        +{Math.max(0, strategy.holdings.length - 3)}
+                        +{Math.max(0, holdings.length - 3)}
                       </div>
                     </div>
                     <span className="text-xs font-semibold text-slate-500">Holdings snapshot</span>
@@ -1120,11 +1133,11 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                 ))}
               </div>
 
-              {selectedStrategy.holdings && selectedStrategy.holdings.length > 0 && (
+              {getHoldingsArray(selectedStrategy).length > 0 && (
               <div>
                 <p className="mb-2 text-sm font-semibold text-slate-900">Top Holdings</p>
                 <div className="space-y-2">
-                  {selectedStrategy.holdings.slice(0, 5).map((holdingItem) => {
+                  {getHoldingsArray(selectedStrategy).slice(0, 5).map((holdingItem) => {
                     const ticker = holdingItem.ticker || holdingItem.symbol || holdingItem;
                     const weight = holdingItem.weight;
                     const security = holdingsSecurities.find((s) => s.symbol === ticker);
