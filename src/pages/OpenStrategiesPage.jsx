@@ -280,6 +280,46 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
     };
   }, []);
 
+  const holdingsBySymbol = useMemo(
+    () => new Map(holdingsSecurities.map((security) => [security.symbol, security])),
+    [holdingsSecurities],
+  );
+
+  const getHoldingSymbol = (holding) => holding?.ticker || holding?.symbol || holding;
+
+  const getHoldingsMinInvestment = (strategy) => {
+    if (!strategy?.holdings || !Array.isArray(strategy.holdings)) return null;
+    const totalCents = strategy.holdings.reduce((sum, holding) => {
+      const symbol = getHoldingSymbol(holding);
+      const security = holdingsBySymbol.get(symbol);
+      const lastPrice = security?.last_price;
+      const shares = Number(holding?.shares);
+      if (!Number.isFinite(shares) || shares <= 0 || lastPrice == null) return sum;
+      return sum + (Number(lastPrice) * shares);
+    }, 0);
+    return totalCents > 0 ? totalCents / 100 : null;
+  };
+
+  const getFallbackMinInvestment = (strategy) => {
+    const fallback = Number(
+      strategy?.min_investment ?? strategy?.minimum ?? strategy?.minInvestmentValue,
+    );
+    return Number.isFinite(fallback) ? fallback : null;
+  };
+
+  const getMinInvestmentValue = (strategy) => {
+    const holdingsMin = getHoldingsMinInvestment(strategy);
+    if (holdingsMin != null) return holdingsMin;
+    return getFallbackMinInvestment(strategy);
+  };
+
+  const getMinInvestmentCategory = (value) => {
+    if (!Number.isFinite(value)) return null;
+    if (value >= 10000) return "R10,000+";
+    if (value >= 2500) return "R2,500+";
+    return "R500+";
+  };
+
   // Fetch securities for strategy holdings with logos
   useEffect(() => {
     let isMounted = true;
@@ -299,7 +339,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
 
         const { data, error } = await supabase
           .from("securities")
-          .select("symbol, name, logo_url")
+          .select("symbol, name, logo_url, last_price")
           .in("symbol", allTickers);
 
         if (error) throw error;
@@ -380,8 +420,10 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
       const matchesRisk = selectedRisks.size
         ? selectedRisks.has(strategy.risk_level || strategy.risk)
         : true;
+      const minInvestmentValue = getMinInvestmentValue(strategy);
+      const minInvestmentCategory = getMinInvestmentCategory(minInvestmentValue);
       const matchesMinInvestment = selectedMinInvestment
-        ? strategy.minInvestment === selectedMinInvestment
+        ? minInvestmentCategory === selectedMinInvestment
         : true;
       const matchesExposure = selectedExposure.size
         ? selectedExposure.has(strategy.exposure)
@@ -419,7 +461,11 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
       sorted.sort((a, b) => a.volatilityScore - b.volatilityScore);
     }
     if (selectedSort === "Lowest minimum") {
-      sorted.sort((a, b) => a.minInvestmentValue - b.minInvestmentValue);
+      sorted.sort((a, b) => {
+        const minA = getMinInvestmentValue(a) ?? Number.POSITIVE_INFINITY;
+        const minB = getMinInvestmentValue(b) ?? Number.POSITIVE_INFINITY;
+        return minA - minB;
+      });
     }
     if (selectedSort === "Most popular") {
       sorted.sort((a, b) => b.popularityScore - a.popularityScore);
@@ -674,6 +720,11 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                 const changeAbs = strategy.change_abs;
                 const hasMetrics = price !== null && price !== undefined;
                 
+                const minInvestmentValue = getMinInvestmentValue(strategy);
+                const minInvestmentText = minInvestmentValue != null
+                  ? `Min. ${formatCurrency(minInvestmentValue, "R")}`
+                  : "Min. R0";
+
                 // Generate sparkline from real data if available, otherwise use mock
                 const sparkline = strategy.sparkline || generateSparkline(changePct);
                 
@@ -694,7 +745,7 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                               {formatChangePct(changePct)}
                             </p>
                             <p className="text-[11px] text-slate-400">
-                              {strategy.minimum_display || strategy.description?.substring(0, 30) || 'Strategy'}
+                              {minInvestmentText}
                             </p>
                           </>
                         ) : (
@@ -987,7 +1038,14 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-slate-900">{selectedStrategy.name}</h3>
-                  <p className="text-sm text-slate-500">{selectedStrategy.minimum_display}</p>
+                  <p className="text-sm text-slate-500">
+                    {(() => {
+                      const minInvestmentValue = getMinInvestmentValue(selectedStrategy);
+                      return minInvestmentValue != null
+                        ? `Min. ${formatCurrency(minInvestmentValue, "R")}`
+                        : "Min. R0";
+                    })()}
+                  </p>
                 </div>
                 <button
                   type="button"
