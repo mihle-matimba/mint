@@ -1390,11 +1390,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                           : strategy.description
                         : '';
                       
-                      // Format minimum investment
                       const holdingsMinInvestment = getHoldingsMinInvestment(strategy);
-                      const formattedMinInvestment = holdingsMinInvestment
-                        ? `Min. ${formatCurrency(holdingsMinInvestment, "R")}`
-                        : null;
+                      const fallbackMinInvestment = Number(strategy.min_investment);
+                      const minInvestmentValue = holdingsMinInvestment
+                        ?? (Number.isFinite(fallbackMinInvestment) ? fallbackMinInvestment : null);
+                      const formattedMinInvestment = minInvestmentValue != null
+                        ? `Min. ${formatCurrency(minInvestmentValue, "R")}`
+                        : "Min. R0";
                       
                       // Generate sparkline (fallback until we have real price history)
                       const sparkline = generateSparkline(0);
@@ -1417,48 +1419,21 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         className="flex-shrink-0 w-80 rounded-2xl border border-slate-100 bg-white shadow-sm hover:shadow-md hover:border-slate-200 p-4 transition-all snap-center"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="flex items-center">
-                            <div className="flex -space-x-2">
-                              {holdingsSnapshot.slice(0, 3).map((holding) => (
-                                <div
-                                  key={`${displayName}-${holding.symbol}`}
-                                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
-                                >
-                                  {holding.logo_url ? (
-                                    <img
-                                      src={holding.logo_url}
-                                      alt={holding.name}
-                                      className="h-full w-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
-                                      {holding.symbol?.substring(0, 2)}
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                              {holdingsSnapshot.length > 3 ? (
-                                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
-                                  +{Math.max(0, holdingsSnapshot.length - 3)}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
                           <div className="flex-1 flex items-start justify-between gap-4">
-                          <div className="text-left space-y-1">
-                            <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-                            <div>
-                              <p className="text-xs text-slate-600 line-clamp-1">
-                                {strategy.risk_level || 'Balanced'} {strategy.objective && `• ${strategy.objective}`}
-                              </p>
-                              <p className="text-[11px] text-slate-400 line-clamp-1">
-                                {formattedMinInvestment || truncatedDescription.substring(0, 30)}
-                              </p>
+                            <div className="text-left space-y-1">
+                              <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+                              <div>
+                                <p className="text-xs text-slate-600 line-clamp-1">
+                                  {strategy.risk_level || 'Balanced'} {strategy.objective && `• ${strategy.objective}`}
+                                </p>
+                                <p className="text-[11px] text-slate-400 line-clamp-1">
+                                  {formattedMinInvestment}
+                                </p>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center rounded-xl bg-slate-50 px-2">
-                            <StrategyMiniChart values={sparkline} />
-                          </div>
+                            <div className="flex items-center rounded-xl bg-slate-50 px-2">
+                              <StrategyMiniChart values={sparkline} />
+                            </div>
                           </div>
                         </div>
 
@@ -1635,48 +1610,17 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             
             <div className="p-6">
               <div className="flex items-start gap-3 mb-6">
-                <div className="flex items-center">
-                  {(() => {
-                    const snapshot = getStrategyHoldingsSnapshot(selectedStrategy);
-                    const visibleHoldings = snapshot.slice(0, 3);
-                    const extraCount = Math.max(0, snapshot.length - visibleHoldings.length);
-                    return (
-                      <div className="flex -space-x-2">
-                        {visibleHoldings.map((holding) => (
-                          <div
-                            key={`${selectedStrategy.name}-${holding.symbol}`}
-                            className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-white bg-white shadow-sm"
-                          >
-                            {holding.logo_url ? (
-                              <img
-                                src={holding.logo_url}
-                                alt={holding.name}
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center bg-slate-100 text-[10px] font-bold text-slate-600">
-                                {holding.symbol?.substring(0, 2)}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        {extraCount > 0 ? (
-                          <div className="flex h-11 w-11 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-semibold text-slate-500">
-                            +{extraCount}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })()}
-                </div>
                 <div className="flex-1">
                   <h2 className="text-lg font-semibold text-slate-900">{selectedStrategy.name}</h2>
                   <p className="text-sm text-slate-500">
                     {(() => {
                       const holdingsMinInvestment = getHoldingsMinInvestment(selectedStrategy);
-                      return holdingsMinInvestment
-                        ? `Min. ${formatCurrency(holdingsMinInvestment, "R")}`
-                        : 'Min. —';
+                      const fallbackMinInvestment = Number(selectedStrategy.min_investment);
+                      const minInvestmentValue = holdingsMinInvestment
+                        ?? (Number.isFinite(fallbackMinInvestment) ? fallbackMinInvestment : null);
+                      return minInvestmentValue != null
+                        ? `Min. ${formatCurrency(minInvestmentValue, "R")}`
+                        : "Min. R0";
                     })()}
                   </p>
                 </div>
