@@ -10,6 +10,7 @@ const emptyProfile = {
   dateOfBirth: "",
   gender: "",
   address: "",
+  watchlist: [], 
 };
 
 const buildProfile = ({ user, row }) => {
@@ -23,6 +24,7 @@ const buildProfile = ({ user, row }) => {
     dateOfBirth: row?.date_of_birth || metadata.date_of_birth || "",
     gender: row?.gender || metadata.gender || "",
     address: row?.address || metadata.address || "",
+    watchlist: row?.watchlist || [],
   };
 };
 
@@ -53,7 +55,8 @@ export const useProfile = () => {
         const user = userData.user;
         const { data: rowData, error: rowError } = await supabase
           .from("profiles")
-          .select("first_name, last_name, email, avatar_url, phone_number, date_of_birth, gender, address")
+
+          .select("*") 
           .eq("id", user.id)
           .maybeSingle();
 

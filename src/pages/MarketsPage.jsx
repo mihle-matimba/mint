@@ -127,7 +127,7 @@ const StrategyMiniChart = ({ values }) => {
   );
 };
 
-const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet }) => {
+const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet, initialViewMode }) => {
   const { profile, loading: profileLoading } = useProfile();
   const [securities, setSecurities] = useState([]);
   const [strategies, setStrategies] = useState([]);
@@ -140,16 +140,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [searchQuery, setSearchQuery] = useState("");
   const [strategiesSearchQuery, setStrategiesSearchQuery] = useState("");
   const [newsSearchQuery, setNewsSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("invest"); // "openstrategies", "invest", "news"
+  const [viewMode, setViewMode] = useState(initialViewMode || "invest"); // "openstrategies", "invest", "news"
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedStrategyTimeframe, setSelectedStrategyTimeframe] = useState("1M");
   const [selectedStrategyActiveLabel, setSelectedStrategyActiveLabel] = useState(null);
   const [selectedStrategyAnalytics, setSelectedStrategyAnalytics] = useState(null);
   const [selectedStrategyAnalyticsLoading, setSelectedStrategyAnalyticsLoading] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sheetOffset, setSheetOffset] = useState(0);
+  const dragStartY = useRef(null);
+  const isDragging = useRef(false);
   // -- WATCHLIST LOGIC --
   const [watchlist, setWatchlist] = useState([]);
 
-  // Sync watchlist from profile when profile loads
   useEffect(() => {
     if (profile?.watchlist && Array.isArray(profile.watchlist)) {
       setWatchlist(profile.watchlist);
@@ -157,7 +160,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   }, [profile]);
 
   const toggleWatchlist = async (e, symbol) => {
-    e.stopPropagation();
+    e.stopPropagation(); 
     if (!profile?.id) return;
 
     const isWatched = watchlist.includes(symbol);
@@ -174,14 +177,9 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
 
     if (error) {
       console.error("Error updating watchlist:", error);
-      setWatchlist(watchlist); 
+      setWatchlist(watchlist); // Revert on error
     }
   };
-
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sheetOffset, setSheetOffset] = useState(0);
-  const dragStartY = useRef(null);
-  const isDragging = useRef(false);
   
   // Filter states for Invest view
   const [selectedSort, setSelectedSort] = useState("Market Cap");
@@ -1058,8 +1056,8 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             {/* Grouped Sections - only show when NOT searching */}
             {!searchQuery && (
               <>
-            {/* Largest Companies Section */}
-            <section>
+                {/* Largest Companies Section */}
+                <section>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">Largest companies</h2>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
@@ -1084,7 +1082,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                         }`}
                       />
                     </div>
-                    
+
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
                         <img
@@ -1127,8 +1125,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 ))}
               </div>
             </section>
-                
-          
+
             {/* Highest Dividend Yield Section */}
             <section>
               <div className="mb-4 flex items-center justify-between">
@@ -1245,13 +1242,12 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 <h2 className="text-lg font-bold text-slate-900">All</h2>
                 <ChevronRight className="h-5 w-5 text-slate-400" />
               </div>
-
               <div className="space-y-3">
                 {filteredSecurities.map((security) => (
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="relative w-full rounded-3xl bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                    className="relative w-full rounded-3xl bg-white p-4 pr-12 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
                     {/* Watchlist Star */}
                     <div
@@ -1306,7 +1302,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                                 )}
                               </>
                             ) : (
-                              <p className="text-xs text-slate-500">No pricing data</p>
+                              <p className="text-xs text-slate-400">—</p>
                             )}
                           </div>
                         </div>
@@ -1347,12 +1343,12 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 ) : (
                   <div className="space-y-3">
                     {filteredSecurities.map((security) => (
-                      <button
+                    <button
                         key={security.id}
                         onClick={() => onOpenStockDetail(security)}
                         className="relative w-full rounded-3xl bg-white p-4 pr-12 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                       >
-                         {/* Watchlist Star - ADDED HERE */}
+                        {/* Watchlist Star */}
                         <div
                           onClick={(e) => toggleWatchlist(e, security.symbol)}
                           className="absolute top-4 right-4 z-10 p-2"
@@ -1424,7 +1420,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </button> 
                     ))}
                   </div>
                 )}
