@@ -319,13 +319,32 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
         
         if (allTickers.length === 0) return;
 
-        const { data, error } = await supabase
-          .from("securities")
-          .select("id, symbol, logo_url, name, currency, last_price")
-          .in("symbol", allTickers);
+        const chunkSize = 50;
+        const chunks = [];
+        for (let i = 0; i < allTickers.length; i += chunkSize) {
+          chunks.push(allTickers.slice(i, i + chunkSize));
+        }
 
-        if (!error && data) {
-          setHoldingsSecurities(data);
+        const results = await Promise.all(
+          chunks.map((symbols) => (
+            supabase
+              .from("securities")
+              .select("id, symbol, logo_url, name, currency, last_price")
+              .in("symbol", symbols)
+          )),
+        );
+
+        const merged = [];
+        results.forEach(({ data, error }) => {
+          if (error) {
+            console.error("Error fetching holdings securities chunk:", error);
+            return;
+          }
+          if (data?.length) merged.push(...data);
+        });
+
+        if (merged.length) {
+          setHoldingsSecurities(merged);
         }
       } catch (error) {
         console.error("Error fetching holdings securities:", error);

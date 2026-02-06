@@ -376,14 +376,32 @@ const OpenStrategiesPage = ({ onBack, onOpenFactsheet }) => {
 
         if (allTickers.length === 0) return;
 
-        const { data, error } = await supabase
-          .from("securities")
-          .select("symbol, name, logo_url, last_price")
-          .in("symbol", allTickers);
+        const chunkSize = 50;
+        const chunks = [];
+        for (let i = 0; i < allTickers.length; i += chunkSize) {
+          chunks.push(allTickers.slice(i, i + chunkSize));
+        }
 
-        if (error) throw error;
-        if (isMounted && data) {
-          setHoldingsSecurities(data);
+        const results = await Promise.all(
+          chunks.map((symbols) => (
+            supabase
+              .from("securities")
+              .select("symbol, name, logo_url, last_price")
+              .in("symbol", symbols)
+          )),
+        );
+
+        const merged = [];
+        results.forEach(({ data, error }) => {
+          if (error) {
+            console.error("Error fetching holdings securities chunk:", error);
+            return;
+          }
+          if (data?.length) merged.push(...data);
+        });
+
+        if (isMounted && merged.length) {
+          setHoldingsSecurities(merged);
         }
       } catch (error) {
         console.error("Error fetching holdings securities:", error);
