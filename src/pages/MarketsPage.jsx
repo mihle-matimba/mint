@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase.js";
 import { getMarketsSecuritiesWithMetrics } from "../lib/marketData.js";
 import { getStrategiesWithMetrics, getPublicStrategies, formatChangePct, formatChangeAbs, getChangeColor } from "../lib/strategyData.js";
 import { useProfile } from "../lib/useProfile";
-import { TrendingUp, Search, SlidersHorizontal, X, ChevronRight } from "lucide-react";
+import { TrendingUp, Search, SlidersHorizontal, X, ChevronRight, Star } from "lucide-react";
 import NotificationBell from "../components/NotificationBell";
 import Skeleton from "../components/Skeleton";
 import { ChartContainer } from "../components/ui/line-charts-2";
@@ -127,7 +127,7 @@ const StrategyMiniChart = ({ values }) => {
   );
 };
 
-const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet }) => {
+const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNewsArticle, onOpenFactsheet, initialViewMode }) => {
   const { profile, loading: profileLoading } = useProfile();
   const [securities, setSecurities] = useState([]);
   const [strategies, setStrategies] = useState([]);
@@ -140,7 +140,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [searchQuery, setSearchQuery] = useState("");
   const [strategiesSearchQuery, setStrategiesSearchQuery] = useState("");
   const [newsSearchQuery, setNewsSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState("invest"); // "openstrategies", "invest", "news"
+  const [viewMode, setViewMode] = useState(initialViewMode || "invest"); // "openstrategies", "invest", "news"
   const [selectedStrategy, setSelectedStrategy] = useState(null);
   const [selectedStrategyTimeframe, setSelectedStrategyTimeframe] = useState("1M");
   const [selectedStrategyActiveLabel, setSelectedStrategyActiveLabel] = useState(null);
@@ -150,6 +150,46 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   const [sheetOffset, setSheetOffset] = useState(0);
   const dragStartY = useRef(null);
   const isDragging = useRef(false);
+  // -- WATCHLIST LOGIC --
+  const [watchlist, setWatchlist] = useState([]);
+
+  useEffect(() => {
+    if (profile?.watchlist && Array.isArray(profile.watchlist)) {
+      setWatchlist(profile.watchlist);
+    }
+  }, [profile]);
+
+  const toggleWatchlist = async (e, symbol) => {
+    e.stopPropagation(); 
+    
+    // DEBUGGING: Check what is missing
+    console.log("Attempting to toggle:", symbol);
+    if (!profile) console.error("Profile is null");
+    else if (!profile.id) console.error("Profile ID is missing! Check useProfile.js");
+    
+    if (!profile?.id) return;
+
+    // Optimistic update
+    const isWatched = watchlist.includes(symbol);
+    const newWatchlist = isWatched
+      ? watchlist.filter((t) => t !== symbol)
+      : [...watchlist, symbol];
+
+    setWatchlist(newWatchlist);
+    console.log("Sending update to DB:", newWatchlist);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ watchlist: newWatchlist })
+      .eq('id', profile.id);
+
+    if (error) {
+      console.error("Database Error:", error);
+      setWatchlist(watchlist); // Revert on error
+    } else {
+      console.log("Success!");
+    }
+  };
   
   // Filter states for Invest view
   const [selectedSort, setSelectedSort] = useState("Market Cap");
@@ -193,9 +233,25 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     });
   };
   
-  // News pagination
+  // -- NEWS PAGINATION --
   const [newsPage, setNewsPage] = useState(1);
-  const newsPerPage = 20;
+  const newsPerPage = 10;
+
+  // -- SECURITIES PAGINATION --
+  const [securitiesPage, setSecuritiesPage] = useState(1);
+  const securitiesPerPage = 10; 
+
+  useEffect(() => {
+    setSecuritiesPage(1);
+  }, [searchQuery, selectedSectors, selectedExchanges, selectedSort]);
+
+  const paginatedSecurities = useMemo(() => {
+    const startIndex = (securitiesPage - 1) * securitiesPerPage;
+    const endIndex = startIndex + securitiesPerPage;
+    return filteredSecurities.slice(startIndex, endIndex);
+  }, [filteredSecurities, securitiesPage, filteredSecurities]); 
+
+  const totalSecuritiesPages = Math.ceil(filteredSecurities.length / securitiesPerPage);
 
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -472,6 +528,10 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
       .sort((a, b) => b.percentGain - a.percentGain)
       .slice(0, 10);
   }, [filteredSecurities]);
+
+  const watchedSecurities = useMemo(() => {
+    return securities.filter((s) => watchlist.includes(s.symbol));
+  }, [securities, watchlist]);
 
   const filteredNews = useMemo(() => {
     return newsArticles.filter(article => 
@@ -1026,6 +1086,75 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             {/* Grouped Sections - only show when NOT searching */}
             {!searchQuery && (
               <>
+                
+                {/* Watchlist Section - Only shows if items exist */}
+                {watchedSecurities.length > 0 && (
+                  <section>
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-lg font-bold text-slate-900">My Watchlist</h2>
+                      <ChevronRight className="h-5 w-5 text-slate-400" />
+                    </div>
+                    <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
+                      {watchedSecurities.map((security) => (
+                        <button
+                          key={security.id}
+                          onClick={() => onOpenStockDetail(security)}
+                          className="relative group flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                        >
+                          {/* Watchlist Star Button */}
+                          <div
+                            onClick={(e) => toggleWatchlist(e, security.symbol)}
+                            className="absolute top-2 right-2 z-10 p-2 rounded-full hover:bg-slate-50 transition-colors"
+                          >
+                            <Star
+                              className="h-5 w-5 fill-yellow-400 text-yellow-400 scale-110"
+                            />
+                          </div>
+
+                          <div className="flex items-start gap-3">
+                            {security.logo_url ? (
+                              <img
+                                src={security.logo_url}
+                                alt={security.symbol}
+                                className="h-12 w-12 rounded-full border border-slate-100 object-cover flex-shrink-0"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-purple-600 text-sm font-bold text-white">
+                                {security.symbol?.substring(0, 2) || "—"}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-900">
+                                {security.short_name || security.name}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-500">{security.symbol}</p>
+                              <div className="mt-2">
+                                {security.currentPrice != null ? (
+                                  <>
+                                    <p className="text-lg font-bold text-slate-900">
+                                      <span className="text-xs text-slate-400 font-normal">{getDisplayCurrency(security)}</span>{' '}
+                                      {formatPrice(security)}
+                                    </p>
+                                    {security.changePct != null && (
+                                      <p className={`mt-1 text-xs font-semibold ${
+                                        security.changePct >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                      }`}>
+                                        {security.changePct >= 0 ? '+' : ''}{security.changePct.toFixed(2)}%
+                                      </p>
+                                    )}
+                                  </>
+                                ) : (
+                                  <p className="text-xs text-slate-500">No pricing data</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
                 {/* Largest Companies Section */}
                 <section>
               <div className="mb-4 flex items-center justify-between">
@@ -1037,8 +1166,22 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                    className="relative group flex-shrink-0 w-64 snap-center rounded-3xl border border-slate-100 bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
+                    {/* Watchlist Star Button */}
+                    <div
+                      onClick={(e) => toggleWatchlist(e, security.symbol)}
+                      className="absolute top-2 right-2 z-10 p-2 rounded-full hover:bg-slate-50 transition-colors"
+                    >
+                      <Star
+                        className={`h-5 w-5 transition-all ${
+                          watchlist.includes(security.symbol) 
+                            ? "fill-yellow-400 text-yellow-400 scale-110" 
+                            : "text-slate-200 group-hover:text-slate-300"
+                        }`}
+                      />
+                    </div>
+
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
                         <img
@@ -1196,15 +1339,32 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">All</h2>
-                <ChevronRight className="h-5 w-5 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-400">
+                  {filteredSecurities.length} assets
+                </span>
               </div>
+              
               <div className="space-y-3">
-                {filteredSecurities.map((security) => (
+                {paginatedSecurities.map((security) => (
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
-                    className="w-full rounded-3xl bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                    className="relative w-full rounded-3xl bg-white p-4 pr-12 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                   >
+                    {/* Watchlist Star */}
+                    <div
+                      onClick={(e) => toggleWatchlist(e, security.symbol)}
+                      className="absolute top-4 right-4 z-10 p-2"
+                    >
+                      <Star
+                        className={`h-5 w-5 ${
+                          watchlist.includes(security.symbol) 
+                            ? "fill-yellow-400 text-yellow-400" 
+                            : "text-slate-200"
+                        }`}
+                      />
+                    </div>
+
                     <div className="flex items-start gap-3">
                       {security.logo_url ? (
                         <img
@@ -1244,7 +1404,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                                 )}
                               </>
                             ) : (
-                              <p className="text-xs text-slate-500">No pricing data</p>
+                              <p className="text-xs text-slate-400">—</p>
                             )}
                           </div>
                         </div>
@@ -1266,6 +1426,29 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                   </button>
                 ))}
               </div>
+
+              {/* Securities Pagination Controls */}
+              {totalSecuritiesPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-6">
+                  <button
+                    onClick={() => setSecuritiesPage((p) => Math.max(1, p - 1))}
+                    disabled={securitiesPage === 1}
+                    className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs font-bold text-slate-500">
+                    {securitiesPage} / {totalSecuritiesPages}
+                  </span>
+                  <button
+                    onClick={() => setSecuritiesPage((p) => Math.min(totalSecuritiesPages, p + 1))}
+                    disabled={securitiesPage === totalSecuritiesPages}
+                    className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </section>
               </>
             )}
@@ -1285,11 +1468,25 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                 ) : (
                   <div className="space-y-3">
                     {filteredSecurities.map((security) => (
-                      <button
+                    <button
                         key={security.id}
                         onClick={() => onOpenStockDetail(security)}
-                        className="w-full rounded-3xl bg-white p-4 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
+                        className="relative w-full rounded-3xl bg-white p-4 pr-12 text-left shadow-sm transition-all hover:shadow-md active:scale-[0.98]"
                       >
+                        {/* Watchlist Star */}
+                        <div
+                          onClick={(e) => toggleWatchlist(e, security.symbol)}
+                          className="absolute top-4 right-4 z-10 p-2"
+                        >
+                          <Star
+                            className={`h-5 w-5 ${
+                              watchlist.includes(security.symbol) 
+                                ? "fill-yellow-400 text-yellow-400" 
+                                : "text-slate-200"
+                            }`}
+                          />
+                        </div>
+
                         <div className="flex items-start gap-3">
                           {security.logo_url ? (
                             <img
@@ -1348,7 +1545,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                             </div>
                           </div>
                         </div>
-                      </button>
+                      </button> 
                     ))}
                   </div>
                 )}

@@ -1,13 +1,47 @@
 import React, { useState, useEffect } from "react";
 import { ArrowLeft, TrendingUp, TrendingDown } from "lucide-react";
 import { getSecurityBySymbol, getSecurityPrices, normalizePriceSeries } from "../lib/marketData.js";
+import { supabase } from "../lib/supabase.js";
 
-const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
+const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy, profile }) => {
   const [selectedPeriod, setSelectedPeriod] = useState("1M");
   const [security, setSecurity] = useState(initialSecurity);
   const [priceHistory, setPriceHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const periods = ["1W", "1M", "3M", "6M", "YTD", "1Y"];
+
+  const [watchlist, setWatchlist] = useState([]);
+
+  useEffect(() => {
+    if (profile?.watchlist && Array.isArray(profile.watchlist)) {
+      setWatchlist(profile.watchlist);
+    }
+  }, [profile]);
+
+  const toggleWatchlist = async () => {
+    if (!profile?.id || !security?.symbol) return;
+
+    const symbol = security.symbol;
+    const isWatched = watchlist.includes(symbol);
+    
+    // Optimistic Update: Change the UI immediately
+    const newWatchlist = isWatched
+      ? watchlist.filter((t) => t !== symbol)
+      : [...watchlist, symbol];
+
+    setWatchlist(newWatchlist);
+
+    // Save to Database
+    const { error } = await supabase
+      .from('profiles')
+      .update({ watchlist: newWatchlist })
+      .eq('id', profile.id);
+
+    if (error) {
+      console.error("Watchlist sync error:", error);
+      setWatchlist(watchlist); // Revert UI if DB fails
+    }
+  };
 
   console.log("🔍 Initial security prop:", {
     symbol: initialSecurity?.symbol,
@@ -272,16 +306,19 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
                 </button>
               ))}
             </div>
-            {selectedPeriodReturn != null && (
-              <div className="mt-3">
-                <div className={`text-lg font-semibold ${
-                  selectedPeriodReturn >= 0 ? 'text-emerald-600' : 'text-red-600'
-                }`}>
-                  {selectedPeriodReturn >= 0 ? '+' : ''}{selectedPeriodReturn.toFixed(2)}%
+            {(() => {
+              const periodReturnValue = selectedPeriodReturn != null ? selectedPeriodReturn : (!loading && chartData.length >= 2 ? chartReturn : null);
+              if (periodReturnValue == null) return null;
+              const isPeriodPositive = periodReturnValue >= 0;
+              return (
+                <div className="mt-3 flex items-baseline gap-1.5">
+                  <span className={`text-lg font-bold ${isPeriodPositive ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {isPeriodPositive ? '+' : ''}{periodReturnValue.toFixed(2)}%
+                  </span>
+                  <span className="text-xs text-slate-400">{selectedPeriod} return</span>
                 </div>
-                <p className="mt-0.5 text-xs text-slate-400">in the last {selectedPeriod}</p>
-              </div>
-            )}
+              );
+            })()}
           </div>
 
           {/* Chart */}
@@ -439,9 +476,17 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
           >
             Buy
           </button>
-          <button className="rounded-2xl border-2 border-slate-200 bg-white py-4 font-semibold text-slate-900 transition-all active:scale-95">
-            Add to Watchlist
-          </button>
+          <button
+          type="button"
+          onClick={toggleWatchlist}
+          className={`rounded-2xl border-2 py-4 font-semibold transition-all active:scale-95 ${
+            watchlist.includes(security?.symbol)
+              ? "border-yellow-400 bg-yellow-50 text-yellow-700"
+              : "border-slate-200 bg-white text-slate-900"
+          }`}
+        >
+          {watchlist.includes(security?.symbol) ? "In Watchlist" : "Add to Watchlist"}
+        </button>
         </div>
       </div>
     </div>

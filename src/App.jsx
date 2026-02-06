@@ -6,7 +6,7 @@ import SwipeBackWrapper from "./components/SwipeBackWrapper.jsx";
 
 import AuthPage from "./pages/AuthPage.jsx";
 import HomePage from "./pages/HomePage.jsx";
-import CreditPage from "./pages/CreditPage.jsx";
+import CreditPage from "./pages/CreditComingSoonPage.jsx";
 import CreditApplyPage from "./pages/CreditApplyPage.jsx";
 import CreditRepayPage from "./pages/CreditRepayPage.jsx";
 import InvestmentsPage from "./pages/InvestmentsPage.jsx";
@@ -19,7 +19,7 @@ import OpenStrategiesPage from "./pages/OpenStrategiesPage.jsx";
 import MorePage from "./pages/MorePage.jsx";
 import OnboardingPage from "./pages/OnboardingPage.jsx";
 import SettingsPage from "./pages/SettingsPage.jsx";
-import TransactPage from "./pages/TransactPage.jsx";
+import TransactPage from "./pages/TransactComingSoonPage.jsx";
 import UserOnboardingPage from "./pages/UserOnboardingPage.jsx";
 import AppLayout from "./layouts/AppLayout.jsx";
 import BiometricsDebugPage from "./pages/BiometricsDebugPage.jsx";
@@ -40,6 +40,8 @@ import LegalDocumentationPage from "./pages/LegalDocumentationPage.jsx";
 import IdentityCheckPage from "./pages/IdentityCheckPage.jsx";
 import BankLinkPage from "./pages/BankLinkPage.jsx";
 import InvitePage from "./pages/InvitePage.jsx";
+import StatementsPage from "./pages/StatementsPage.jsx";
+import { useProfile } from "./lib/useProfile";
 
 const initialHash = window.location.hash;
 const isRecoveryMode = initialHash.includes('type=recovery');
@@ -66,9 +68,10 @@ const getTokensFromHash = (hash) => {
 
 const recoveryTokens = isRecoveryMode ? getTokensFromHash(initialHash) : null;
 
-const mainTabs = ['home', 'credit', 'transact', 'investments', 'more', 'welcome', 'auth'];
+const mainTabs = ['home', 'credit', 'transact', 'investments', 'statements', 'more', 'welcome', 'auth'];
 
 const App = () => {
+  const { profile } = useProfile();
   const [currentPage, setCurrentPage] = useState(hasError ? "linkExpired" : (isRecoveryMode ? "auth" : "welcome"));
   const [previousPageName, setPreviousPageName] = useState(null);
   const [authStep, setAuthStep] = useState(isRecoveryMode ? "newPassword" : "email");
@@ -83,6 +86,8 @@ const App = () => {
   const [stockCheckout, setStockCheckout] = useState({ security: null, amount: 0 });
   const recoveryHandled = useRef(false);
   const { refetch: refetchNotifications } = useNotificationsContext();
+  const [marketsTab, setMarketsTab] = useState("invest");
+  
   
   const navigationHistory = useRef([]);
   const pageStateCache = useRef({});
@@ -98,23 +103,42 @@ const App = () => {
     };
   }, [currentPage, selectedSecurity, selectedStrategy, selectedArticleId, investmentAmount, stockCheckout, notificationReturnPage]);
 
-  const navigateTo = useCallback((page) => {
-    if (page === currentPage) return;
+  const navigateTo = useCallback((page, subView = null) => { 
+  if (page === currentPage && !subView) return;
+
+
+  if (page === 'markets') {
+    setMarketsTab(subView || 'invest');
+  }
+  
+  if (!mainTabs.includes(page)) {
+    cacheCurrentPageState();
+    navigationHistory.current.push(currentPage);
     
-    if (!mainTabs.includes(page)) {
-      cacheCurrentPageState();
-      navigationHistory.current.push(currentPage);
-      if (navigationHistory.current.length > 20) {
-        navigationHistory.current = navigationHistory.current.slice(-20);
-      }
-      setPreviousPageName(currentPage);
-    } else {
-      navigationHistory.current = [];
-      setPreviousPageName(null);
+    if (navigationHistory.current.length > 20) {
+      navigationHistory.current = navigationHistory.current.slice(-20);
     }
     
-    setCurrentPage(page);
-  }, [currentPage, cacheCurrentPageState]);
+    setPreviousPageName(currentPage);
+    
+    if (!Capacitor.isNativePlatform()) {
+      window.history.pushState({ 
+        page, 
+        index: navigationHistory.current.length,
+        subView 
+      }, '', window.location.pathname);
+    }
+  } else {
+    navigationHistory.current = [];
+    setPreviousPageName(null);
+    
+    if (!Capacitor.isNativePlatform()) {
+      window.history.replaceState({ page, index: 0 }, '', window.location.pathname);
+    }
+  }
+  
+  setCurrentPage(page);
+}, [currentPage, cacheCurrentPageState]);
 
   const goBack = useCallback(() => {
     if (navigationHistory.current.length > 0) {
@@ -177,6 +201,34 @@ const App = () => {
     };
   }, [currentPage]);
 
+
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      return;
+    }
+
+    const handlePopState = (event) => {
+      if (navigationHistory.current.length > 0) {
+        const prevPage = navigationHistory.current.pop();
+        const newPreviousPage = navigationHistory.current.length > 0 
+          ? navigationHistory.current[navigationHistory.current.length - 1] 
+          : null;
+        setPreviousPageName(newPreviousPage);
+        setCurrentPage(prevPage);
+      } else if (!mainTabs.includes(currentPage)) {
+        setPreviousPageName(null);
+        setCurrentPage('home');
+      } else {
+        window.history.pushState({ page: currentPage, index: 0 }, '', window.location.pathname);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [currentPage]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -344,6 +396,21 @@ const App = () => {
             />
           </AppLayout>
         );
+        
+      case 'statements':
+        return (
+          <AppLayout
+            activeTab="statements"
+            onTabChange={noOp}
+            onWithdraw={noOp}
+            onShowComingSoon={noOp}
+            modal={null}
+            onCloseModal={noOp}
+          >
+            <StatementsPage />
+          </AppLayout>
+        );
+
       case 'investments':
         return (
           <AppLayout
@@ -374,21 +441,23 @@ const App = () => {
           </AppLayout>
         );
       case 'markets':
-        return (
-          <MarketsPage
-            onBack={noOp}
-            onOpenNotifications={noOp}
-            onOpenStockDetail={noOp}
-            onOpenNewsArticle={noOp}
-            onOpenFactsheet={noOp}
-          />
-        );
+      return (
+        <MarketsPage
+          initialView={marketsTab}
+          onBack={noOp}
+          onOpenNotifications={noOp}
+          onOpenStockDetail={noOp}
+          onOpenNewsArticle={noOp}
+          onOpenFactsheet={noOp}
+        />
+      );
       case 'stockDetail':
         return (
           <StockDetailPage
             security={previewSecurity}
             onBack={noOp}
             onOpenBuy={noOp}
+            profile={profile}
           />
         );
       case 'stockBuy':
@@ -644,9 +713,12 @@ const App = () => {
           onOpenCredit={() => setCurrentPage("credit")}
           onOpenCreditApply={() => navigateTo("creditApply")}
           onOpenCreditRepay={() => navigateTo("creditRepay")}
-          onOpenInvest={() => navigateTo("markets")}
+          onOpenInvest={(tab) => navigateTo("markets", tab)}
           onOpenWithdraw={handleWithdrawRequest}
           onOpenSettings={() => navigateTo("settings")}
+          onOpenMarkets={(tab) => navigateTo("markets", tab)}
+          onOpenStrategies={(tab) => navigateTo("markets", tab)}
+          onOpenNews={(tab) => navigateTo("markets", tab)}
         />
       </AppLayout>
     );
@@ -755,6 +827,7 @@ const App = () => {
     return (
       <SwipeBackWrapper onBack={goBack} enabled={canSwipeBack} previousPage={previousPageComponent}>
         <MarketsPage
+          initialView={marketsTab} // <--- ADD THIS LINE
           onBack={goBack}
           onOpenNotifications={() => {
             setNotificationReturnPage("markets");
@@ -784,6 +857,7 @@ const App = () => {
           security={selectedSecurity}
           onBack={goBack}
           onOpenBuy={() => navigateTo("stockBuy")}
+          profile={profile}
         />
       </SwipeBackWrapper>
     );
@@ -952,6 +1026,21 @@ const App = () => {
           <BiometricsDebugPage onNavigate={navigateTo} onBack={goBack} />
         </AppLayout>
       </SwipeBackWrapper>
+    );
+  }
+
+  if (currentPage === "statements") {
+    return (
+      <AppLayout
+        activeTab="statements"
+        onTabChange={setCurrentPage}
+        onWithdraw={handleWithdrawRequest}
+        onShowComingSoon={handleShowComingSoon}
+        modal={modal}
+        onCloseModal={closeModal}
+      >
+        <StatementsPage />
+      </AppLayout>
     );
   }
 
