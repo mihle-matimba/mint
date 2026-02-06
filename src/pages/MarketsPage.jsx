@@ -235,7 +235,19 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
   
   // News pagination
   const [newsPage, setNewsPage] = useState(1);
-  const newsPerPage = 20;
+  const newsPerPage = 10;
+
+  useEffect(() => {
+    setSecuritiesPage(1);
+  }, [searchQuery, selectedSectors, selectedExchanges, selectedSort]);
+
+  const paginatedSecurities = useMemo(() => {
+    const startIndex = (securitiesPage - 1) * securitiesPerPage;
+    const endIndex = startIndex + securitiesPerPage;
+    return filteredSecurities.slice(startIndex, endIndex);
+  }, [filteredSecurities, securitiesPage]);
+
+  const totalSecuritiesPages = Math.ceil(filteredSecurities.length / securitiesPerPage);
 
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ");
   const initials = displayName
@@ -1323,10 +1335,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
             <section>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">All</h2>
-                <ChevronRight className="h-5 w-5 text-slate-400" />
+                <span className="text-xs font-semibold text-slate-400">
+                  {filteredSecurities.length} assets
+                </span>
               </div>
+              
               <div className="space-y-3">
-                {filteredSecurities.map((security) => (
+                {paginatedSecurities.map((security) => (
                   <button
                     key={security.id}
                     onClick={() => onOpenStockDetail(security)}
@@ -1407,6 +1422,29 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
                   </button>
                 ))}
               </div>
+
+              {/* Securities Pagination Controls */}
+              {totalSecuritiesPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-6">
+                  <button
+                    onClick={() => setSecuritiesPage((p) => Math.max(1, p - 1))}
+                    disabled={securitiesPage === 1}
+                    className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-xs font-bold text-slate-500">
+                    {securitiesPage} / {totalSecuritiesPages}
+                  </span>
+                  <button
+                    onClick={() => setSecuritiesPage((p) => Math.min(totalSecuritiesPages, p + 1))}
+                    disabled={securitiesPage === totalSecuritiesPages}
+                    className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </section>
               </>
             )}
