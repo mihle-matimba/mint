@@ -233,9 +233,13 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     });
   };
   
-  // News pagination
-  const [securitiesPage, setSecuritiesPage] = useState(1);
+  // -- NEWS PAGINATION --
+  const [newsPage, setNewsPage] = useState(1);
   const newsPerPage = 10;
+
+  // -- SECURITIES PAGINATION --
+  const [securitiesPage, setSecuritiesPage] = useState(1);
+  const securitiesPerPage = 10; 
 
   useEffect(() => {
     setSecuritiesPage(1);
@@ -245,7 +249,7 @@ const MarketsPage = ({ onBack, onOpenNotifications, onOpenStockDetail, onOpenNew
     const startIndex = (securitiesPage - 1) * securitiesPerPage;
     const endIndex = startIndex + securitiesPerPage;
     return filteredSecurities.slice(startIndex, endIndex);
-  }, [filteredSecurities, securitiesPage]);
+  }, [filteredSecurities, securitiesPage, filteredSecurities]); 
 
   const totalSecuritiesPages = Math.ceil(filteredSecurities.length / securitiesPerPage);
 
