@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "./supabase";
 
 const emptyProfile = {
-  id: "",
+  id: null,
   email: "",
   firstName: "",
   lastName: "",
