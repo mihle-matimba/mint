@@ -130,20 +130,9 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
   const paddedRange = maxValue - minValue;
   const hasValidRange = paddedRange > 0 && chartData.length > 1;
 
-  const formatTimestamp = () => {
-    // AsOfTime is a text field in format like "16:30" or "2024-01-15 16:30:00"
-    if (displaySecurity?.AsOfTime) {
-      // If it's a full timestamp, extract time
-      if (displaySecurity.AsOfTime.includes(' ')) {
-        return displaySecurity.AsOfTime.split(' ')[1].substring(0, 5);
-      }
-      // If it's just time, use it directly
-      if (displaySecurity.AsOfTime.includes(':')) {
-        return displaySecurity.AsOfTime.substring(0, 5);
-      }
-    }
-    return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
-  };
+  const asOfLabel = displaySecurity?.AsOfTime
+    ? `As of ${displaySecurity.AsOfTime}`
+    : 'As of —';
 
   // Helper function to calculate Y position with proper domain
   const getYPosition = (value) => {
@@ -217,9 +206,7 @@ const StockDetailPage = ({ security: initialSecurity, onBack, onOpenBuy }) => {
               {percentChange}
             </span>
           </div>
-          <p className="mt-1 text-xs text-slate-400">
-              As of today at {formatTimestamp()} GMT+2
-          </p>
+            <p className="mt-1 text-xs text-slate-400">{asOfLabel}</p>
         </div>
       </div>
 
